@@ -66,7 +66,8 @@ printf 'VOICESTUDIO_DOMAIN=voice.example.com\nOMNIVOICE_API_KEY=%s\n' "$(openssl
 docker compose -f deploy/docker-compose.server.yml up -d --build
 ```
 
-Open `https://voice.example.com` and sign in with the key from `deploy/.env`.
+Open `https://voice.example.com:9999` and sign in with the key from `deploy/.env`
+(set `VOICESTUDIO_PORT` in `deploy/.env` to use another port).
 For NVIDIA GPUs, your own nginx, or a setup without Docker, see the
 **[server guide](docs/install/server.md)**. Plain Docker usage:
 [docs/install/docker.md](docs/install/docker.md).

@@ -2,17 +2,18 @@
 #  VoiceStudio — web app on your own server (HTTPS via Caddy)
 #
 #  1. Point a DNS record (e.g. voice.example.com) at this server and open
-#     ports 80 + 443.
+#     port 9999 (the app) and port 80 (Let's Encrypt certificate challenge).
 #  2. Create deploy/.env next to this file:
 #       VOICESTUDIO_DOMAIN=voice.example.com
 #       OMNIVOICE_API_KEY=<output of: openssl rand -base64 32>
-#       HF_TOKEN=            # optional, for gated Hugging Face models
+#       VOICESTUDIO_PORT=9999   # optional, public HTTPS port (default 9999)
+#       HF_TOKEN=               # optional, for gated Hugging Face models
 #  3. Start (builds the image from this checkout):
 #       docker compose -f deploy/docker-compose.server.yml up -d --build
 #     NVIDIA GPU:  add  -f deploy/docker-compose.server.gpu.yml
-#  4. Open https://voice.example.com and sign in with OMNIVOICE_API_KEY.
+#  4. Open https://voice.example.com:9999 and sign in with OMNIVOICE_API_KEY.
 #
-#  The app container publishes no host port; only Caddy (80/443) is exposed.
+#  The app container publishes no host port; only Caddy (80 + 9999) is exposed.
 #  Every browser must present the API key (exchanged for a short-lived
 #  session cookie), so the app is never open to the internet unauthenticated.
 # ──────────────────────────────────────────────────────────────
@@ -38,7 +39,7 @@ services:
       - OMNIVOICE_SERVER_MODE=1
       - OMNIVOICE_API_KEY=${OMNIVOICE_API_KEY:?set OMNIVOICE_API_KEY in deploy/.env}
       # Browser origin allowed to use cookie sessions and WebSockets.
-      - OMNIVOICE_ALLOWED_ORIGINS=https://${VOICESTUDIO_DOMAIN:?set VOICESTUDIO_DOMAIN in deploy/.env}
+      - OMNIVOICE_ALLOWED_ORIGINS=https://${VOICESTUDIO_DOMAIN:?set VOICESTUDIO_DOMAIN in deploy/.env}:${VOICESTUDIO_PORT:-9999}
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3900/health"]
       interval: 30s
@@ -53,11 +54,12 @@ services:
     depends_on:
       - voicestudio
     ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+      - "80:80"   # Let's Encrypt HTTP-01 challenge only
+      - "${VOICESTUDIO_PORT:-9999}:${VOICESTUDIO_PORT:-9999}"
+      - "${VOICESTUDIO_PORT:-9999}:${VOICESTUDIO_PORT:-9999}/udp"
     environment:
       - VOICESTUDIO_DOMAIN=${VOICESTUDIO_DOMAIN:?set VOICESTUDIO_DOMAIN in deploy/.env}
+      - VOICESTUDIO_PORT=${VOICESTUDIO_PORT:-9999}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

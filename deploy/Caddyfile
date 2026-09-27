@@ -1,7 +1,8 @@
-# HTTPS reverse proxy for VoiceStudio. Caddy gets and renews a Let's Encrypt
-# certificate for $VOICESTUDIO_DOMAIN automatically (ports 80 and 443 must be
-# reachable from the internet and the domain's DNS must point at this server).
-{$VOICESTUDIO_DOMAIN} {
+# HTTPS reverse proxy for VoiceStudio, served on https://$VOICESTUDIO_DOMAIN:$VOICESTUDIO_PORT
+# (default port 9999). Caddy gets and renews a Let's Encrypt certificate
+# automatically: the domain's DNS must point at this server and port 80 must be
+# reachable from the internet for the certificate challenge.
+{$VOICESTUDIO_DOMAIN}:{$VOICESTUDIO_PORT:9999} {
 	encode zstd gzip
 	# Uploads (videos for dubbing, audiobooks) can be large.
 	request_body {

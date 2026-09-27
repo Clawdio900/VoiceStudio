@@ -6,7 +6,8 @@ the API from one port. Put it behind HTTPS and open it from any browser.
 ## Quick start (Docker + automatic HTTPS)
 
 Requirements: a Linux x86-64 server with Docker and Docker Compose, a domain
-name pointing at the server, and ports 80 and 443 open. For an NVIDIA GPU, also
+name pointing at the server, and ports 9999 (the app) and 80 (certificate
+challenge only) open. For an NVIDIA GPU, also
 install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
 
 ```bash
@@ -27,7 +28,10 @@ docker compose -f deploy/docker-compose.server.yml \
   -f deploy/docker-compose.server.gpu.yml up -d --build
 ```
 
-Open `https://voice.example.com` and sign in with the `OMNIVOICE_API_KEY`
+The app is served on **port 9999**. To use another port, add
+`VOICESTUDIO_PORT=<port>` to `deploy/.env`.
+
+Open `https://voice.example.com:9999` and sign in with the `OMNIVOICE_API_KEY`
 value from `deploy/.env`. The browser exchanges it for a short-lived session
 cookie; the key itself is never stored in the browser.
 
@@ -52,7 +56,7 @@ Run the plain Studio compose (`deploy/docker-compose.yml --profile cpu` or
 Required settings:
 
 - Set `OMNIVOICE_API_KEY` (mandatory) and
-  `OMNIVOICE_ALLOWED_ORIGINS=https://voice.example.com`.
+  `OMNIVOICE_ALLOWED_ORIGINS=https://voice.example.com:9999`.
 - Forward `X-Forwarded-For` and `X-Forwarded-Proto`.
 - Allow WebSocket upgrades and disable response buffering (progress is
   streamed with SSE).
@@ -62,7 +66,7 @@ nginx example:
 
 ```nginx
 server {
-    listen 443 ssl http2;
+    listen 9999 ssl http2;
     server_name voice.example.com;
     # ssl_certificate / ssl_certificate_key ...
 
@@ -111,7 +115,7 @@ uv sync                                             # Python backend
 
 export OMNIVOICE_API_KEY="$(openssl rand -base64 32)"
 export OMNIVOICE_SERVER_MODE=1
-export OMNIVOICE_ALLOWED_ORIGINS=https://voice.example.com
+export OMNIVOICE_ALLOWED_ORIGINS=https://voice.example.com:9999
 uv run uvicorn main:app --app-dir backend --host 127.0.0.1 --port 3900
 ```
 
