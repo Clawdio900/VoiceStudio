@@ -2,6 +2,13 @@
 # (default port 9999). No domain or internet access needed: Caddy issues the
 # certificate from its own local CA ("tls internal"). HTTPS matters even on a
 # LAN because browsers only allow the microphone on secure origins.
+{
+	# Browsers send no SNI when connecting to a bare IP. Fall back to the
+	# configured host's certificate so the handshake never fails for lack of
+	# a matching name.
+	default_sni {$VOICESTUDIO_HOST}
+}
+
 https://{$VOICESTUDIO_HOST}:{$VOICESTUDIO_PORT:9999} {
 	tls internal
 	encode zstd gzip

@@ -107,9 +107,16 @@ cd "$INSTALL_DIR"
 # ── 5. Configuration ───────────────────────────────────────────────────────
 ENV_FILE=deploy/.env
 if [ ! -f "$ENV_FILE" ]; then
-  LAN_IP="${LAN_IP:-$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<NF;i++) if($i=="src"){print $(i+1); exit}}')}"
-  [ -n "$LAN_IP" ] || LAN_IP="$(hostname -I | awk '{print $1}')"
-  [ -n "$LAN_IP" ] || die "Could not detect the LAN IP. Re-run with LAN_IP=192.168.x.y"
+  # Prefer the address of the default-route interface; skip VPN/Docker
+  # interfaces (tun*, wg*, tailscale*, docker*, br-*, veth*).
+  if [ -z "${LAN_IP:-}" ]; then
+    dev="$(ip -4 route show default 2>/dev/null | awk '{for(i=1;i<NF;i++) if($i=="dev"){print $(i+1); exit}}')"
+    case "$dev" in tun*|wg*|tailscale*|docker*|br-*|veth*|"") dev="" ;; esac
+    [ -n "$dev" ] && LAN_IP="$(ip -4 -o addr show dev "$dev" scope global | awk '{split($4,a,"/"); print a[1]; exit}')"
+  fi
+  [ -n "${LAN_IP:-}" ] || LAN_IP="$(ip -4 -o addr show scope global | awk '$2 !~ /^(tun|wg|tailscale|docker|br-|veth)/ {split($4,a,"/"); print a[1]; exit}')"
+  echo "    Detected LAN IP: $LAN_IP (override with LAN_IP=... if wrong)"
+  [ -n "${LAN_IP:-}" ] || die "Could not detect the LAN IP. Re-run with LAN_IP=192.168.x.y"
   say "Writing $ENV_FILE (LAN IP $LAN_IP, port $PORT)"
   umask 077
   {
