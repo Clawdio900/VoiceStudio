@@ -7,6 +7,16 @@ the API from one port. Put it behind HTTPS and open it from any browser.
 
 For a server that only devices on your home or office network should reach.
 
+**One-command install (NVIDIA GPU, Ubuntu/Debian or RHEL/Fedora):** installs
+Docker and the NVIDIA Container Toolkit if needed, then builds and starts
+VoiceStudio on `https://<LAN IP>:9999`. Safe to re-run to update.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Clawdio900/VoiceStudio/webapp-server/scripts/install-docker-gpu.sh | sudo bash
+```
+
+Manual steps:
+
 ```bash
 git clone -b webapp-server https://github.com/<you>/VoiceStudio.git
 cd VoiceStudio
