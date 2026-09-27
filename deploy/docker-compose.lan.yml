@@ -50,7 +50,9 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 180s
+      # Cold start imports PyTorch (several GB); small or swapping servers
+      # need well over 3 minutes before /health answers.
+      start_period: 900s
     restart: unless-stopped
 
   caddy:
