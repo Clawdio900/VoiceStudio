@@ -155,7 +155,12 @@ OMNIVOICE_SIDECAR_IDLE_TIMEOUT_S=120
 OMNIVOICE_UNLOAD_NLLB=1
 OMNIVOICE_CPU_POOL=2
 MALLOC_ARENA_MAX=2
+OMNIVOICE_RAM_PREFLIGHT=0
 LOWMEM
+fi
+# Older installs got the preset before the RAM-check opt-out existed.
+if grep -q '^# low-memory preset' "$ENV_FILE" && ! grep -q '^OMNIVOICE_RAM_PREFLIGHT=' "$ENV_FILE"; then
+  echo "OMNIVOICE_RAM_PREFLIGHT=0" >> "$ENV_FILE"
 fi
 # shellcheck disable=SC1090
 . "./$ENV_FILE"

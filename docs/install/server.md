@@ -65,6 +65,7 @@ OMNIVOICE_SIDECAR_IDLE_TIMEOUT_S=120
 OMNIVOICE_UNLOAD_NLLB=1            # free the translation model after each dub
 OMNIVOICE_CPU_POOL=2               # fewer worker threads
 MALLOC_ARENA_MAX=2                 # stop glibc from hoarding freed memory
+OMNIVOICE_RAM_PREFLIGHT=0          # setup RAM check warns instead of blocking
 ```
 
 Also add swap (8 GB or more), stop other memory-heavy containers while
