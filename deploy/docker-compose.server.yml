@@ -29,6 +29,11 @@ services:
       - "3900"
     volumes:
       - voicestudio-data:/app/omnivoice_data
+    # Every OMNIVOICE_* tuning variable in deploy/.env (e.g. the low-memory
+    # preset the installer writes on small servers) reaches the backend.
+    env_file:
+      - path: .env
+        required: false
     environment:
       - HF_HOME=/app/omnivoice_data/huggingface
       - HF_TOKEN=${HF_TOKEN:-}

@@ -3078,6 +3078,11 @@ async def preload_model():
             "model loads on first request and is released when it goes idle."
         )
         return
+    # Low-memory hosts: holding the TTS model from boot costs several GB that
+    # the idle sweep then has to reclaim. Opt out and load on first use.
+    if not _env_flag("OMNIVOICE_PRELOAD_TTS", default=True):
+        logger.info("TTS preload disabled (OMNIVOICE_PRELOAD_TTS=0); the model loads on first use.")
+        return
     try:
         # Warm-up is gated on LOCAL availability only — never a Hub API
         # probe. The old `model_info(checkpoint)` probe proved the repo

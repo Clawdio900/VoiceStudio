@@ -49,6 +49,28 @@ docker compose -f deploy/docker-compose.lan.yml cp \
 HTTPS is used even on a LAN because browsers only allow the microphone
 (recording, dictation) on secure origins.
 
+## Low-memory servers (under 8 GB RAM)
+
+The installer adds this block to `deploy/.env` automatically when the server has
+less than 8 GB of RAM. To enable it by hand, append it and recreate the container
+(`docker compose -f deploy/docker-compose.lan.yml up -d --force-recreate voicestudio`):
+
+```bash
+# low-memory preset (servers with < 8 GB RAM); delete this block to disable
+OMNIVOICE_PRELOAD_TTS=0            # load the voice model on first use, not at boot
+OMNIVOICE_PRELOAD_CAPTURE_ASR=0    # same for dictation
+OMNIVOICE_PRELOAD_WATERMARK=0      # same for the watermark model
+OMNIVOICE_IDLE_TIMEOUT_S=300       # unload the voice model after 5 idle minutes (default 15)
+OMNIVOICE_SIDECAR_IDLE_TIMEOUT_S=120
+OMNIVOICE_UNLOAD_NLLB=1            # free the translation model after each dub
+OMNIVOICE_CPU_POOL=2               # fewer worker threads
+MALLOC_ARENA_MAX=2                 # stop glibc from hoarding freed memory
+```
+
+Also add swap (8 GB or more), stop other memory-heavy containers while
+generating, and prefer short jobs: voice cloning and TTS work on 4 to 6 GB;
+video dubbing and long audiobooks need 8 GB or more.
+
 ## Public internet (with a domain)
 
 ### Quick start (Docker + automatic HTTPS)

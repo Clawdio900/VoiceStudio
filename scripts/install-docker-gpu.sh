@@ -14,6 +14,7 @@
 #
 # Environment overrides:
 #   INSTALL_DIR=/opt/voicestudio  PORT=9999  LAN_IP=<auto>  HF_TOKEN=<none>  FORCE_CPU=0
+#   LOW_MEMORY=0 (forced on automatically below 8 GB RAM)
 #   REPO_URL=https://github.com/Clawdio900/VoiceStudio.git  BRANCH=webapp-server
 set -euo pipefail
 
@@ -139,6 +140,22 @@ if [ ! -f "$ENV_FILE" ]; then
   } > "$ENV_FILE"
 else
   say "Keeping existing $ENV_FILE"
+fi
+# Servers under 8 GB RAM: enable the low-memory preset (added once, editable).
+MEM_GB="$(awk '/MemTotal/ {printf "%d", $2/1024/1024}' /proc/meminfo)"
+if { [ "$MEM_GB" -lt 8 ] || [ "${LOW_MEMORY:-0}" = 1 ]; } && ! grep -q '^# low-memory preset' "$ENV_FILE"; then
+  say "Only ${MEM_GB} GB RAM: enabling the low-memory preset in $ENV_FILE"
+  cat >> "$ENV_FILE" <<'LOWMEM'
+# low-memory preset (servers with < 8 GB RAM); delete this block to disable
+OMNIVOICE_PRELOAD_TTS=0
+OMNIVOICE_PRELOAD_CAPTURE_ASR=0
+OMNIVOICE_PRELOAD_WATERMARK=0
+OMNIVOICE_IDLE_TIMEOUT_S=300
+OMNIVOICE_SIDECAR_IDLE_TIMEOUT_S=120
+OMNIVOICE_UNLOAD_NLLB=1
+OMNIVOICE_CPU_POOL=2
+MALLOC_ARENA_MAX=2
+LOWMEM
 fi
 # shellcheck disable=SC1090
 . "./$ENV_FILE"
