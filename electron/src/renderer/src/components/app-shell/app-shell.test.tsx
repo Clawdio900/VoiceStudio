@@ -14,7 +14,6 @@ vi.mock('./workspace-sidebar', () => ({
   WorkspaceSidebar: () => <aside data-testid="main-sidebar" />,
 }));
 vi.mock('./sponsor-footer', () => ({ SponsorFooter: () => null }));
-vi.mock('./repair-agent-dock', () => ({ RepairAgentDock: () => null }));
 vi.mock('./system-notifications', () => ({ SystemNotifications: () => null }));
 vi.mock('@/components/command-palette', () => ({ CommandPalette: () => null }));
 vi.mock('../backend-gate', () => ({ BackendGate: ({ children }: any) => <>{children}</> }));

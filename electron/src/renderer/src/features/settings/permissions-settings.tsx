@@ -8,7 +8,7 @@ import {
   MicIcon,
   RotateCwIcon,
 } from 'lucide-react';
-import type { NativePermissions, NativePermissionStatus } from '../../../../preload/index.d';
+import type { NativePermissions, NativePermissionStatus } from '@/lib/bridge-types';
 import { getBridge } from '@/components/bridge';
 import { PipelineFailure } from '@/components/pipeline-failure';
 import { Badge } from '@/components/ui/badge';

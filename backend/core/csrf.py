@@ -83,7 +83,9 @@ def _origin_tuple(value: str | None) -> tuple[str, str, int | None] | None:
     return scheme, parsed.hostname.lower(), port
 
 
-DEFAULT_DESKTOP_ORIGINS = ("tauri://localhost", "http://tauri.localhost", "app://voicestudio")
+# Web app only: no desktop shell origins (tauri://, app://) are trusted by
+# default. Add a deployment's public origin via OMNIVOICE_ALLOWED_ORIGINS.
+DEFAULT_DESKTOP_ORIGINS: tuple[str, ...] = ()
 
 def configured_allowed_origins() -> frozenset[tuple[str, str, int | None]]:
     raw_port = os.environ.get("OMNIVOICE_UI_PORT", "3901")

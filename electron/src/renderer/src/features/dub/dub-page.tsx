@@ -3,7 +3,6 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { SecondarySidebar } from '@/components/workspace-sidebar';
 import { PipelineFailure } from '@/components/pipeline-failure';
 import { EngineNotice } from '@/components/engine-notice';
-import { AgentFixButton } from '@/components/agent-fix-button';
 import { getBridge } from '@/components/bridge';
 import { WorkspaceHeader } from '@/components/app-shell/workspace-header';
 import { Switch } from '@/components/ui/switch';
@@ -31,7 +30,7 @@ import { useDubOnsets } from './use-dub-onsets';
 import { useDubLivePreview } from './use-dub-live-preview';
 import { setDubQuality, setDubProduction, setDubTranslationOptions } from './dub-session';
 import { DEFAULT_REPAIR_AGENT_KEY } from '@/lib/repair-agent-events';
-import type { RepairAgentId, RepairAgentInfo } from '../../../../preload/index.d';
+import type { RepairAgentId, RepairAgentInfo } from '@/lib/bridge-types';
 import {
   useCallback,
   useEffect,
@@ -1761,7 +1760,6 @@ export function DubPage() {
                       >
                         {t('asr_missing.choose')}
                       </Link>
-                      <AgentFixButton request="Restore local ASR readiness for this Dubbing job. Install and activate the best supported Faster-Whisper model through VoiceStudio's setup interfaces, preserve the prepared media, and leave transcription ready to retry." />
                     </div>
                   )
                 ) : (

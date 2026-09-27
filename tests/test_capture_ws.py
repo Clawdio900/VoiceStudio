@@ -312,29 +312,10 @@ def test_pause_outlasts_silence_timeout_and_resume_keeps_audio(client, monkeypat
     assert sizes == [40_000]
 
 
-@pytest.mark.parametrize("origin", ["app://voicestudio", "app://voicestudio.evil", "app://other-app"])
-def test_electron_stream_origin_and_final_delivery(client, monkeypatch, origin):
+def test_desktop_shell_origin_is_rejected_on_stream(client, monkeypatch):
     from starlette.websockets import WebSocketDisconnect
     monkeypatch.delenv("OMNIVOICE_ALLOWED_ORIGINS", raising=False)
-    if origin != "app://voicestudio":
-        with pytest.raises(WebSocketDisconnect) as error:
-            with client.websocket_connect("/ws/transcribe", headers={"origin": origin}):
-                pass
-        assert error.value.code == 1008
-        return
-    with client.websocket_connect("/ws/transcribe", headers={"origin": origin}) as ws:
-        ws.send_bytes(_audio_chunk())
-        ws.send_text("EOF")
-        while True:
-            message = ws.receive_json()
-            if message["type"] == "final":
-                assert message["text"] == "Hello world."
-                break
-
-
-def test_electron_http_preflight_uses_the_same_desktop_origin(client):
-    response = client.options("/system/info", headers={
-        "origin": "app://voicestudio", "access-control-request-method": "GET",
-    })
-    assert response.status_code == 200
-    assert response.headers["access-control-allow-origin"] == "app://voicestudio"
+    with pytest.raises(WebSocketDisconnect) as error:
+        with client.websocket_connect("/ws/transcribe", headers={"origin": "app://voicestudio"}):
+            pass
+    assert error.value.code == 1008

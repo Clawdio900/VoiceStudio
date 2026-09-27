@@ -24,25 +24,11 @@ Read it before opening a proposal; the licence check in particular ends most of 
 ### Prerequisites
 
 - [Git](https://git-scm.com/)
-- `curl` (used by the Bun / uv / rustup install one-liners on macOS and Linux)
+- `curl` (used by the Bun / uv install one-liners on macOS and Linux)
 - [Bun](https://bun.sh/) (frontend package manager)
 - [uv](https://docs.astral.sh/uv/) (Python environment manager)
 - [ffmpeg](https://ffmpeg.org/) (audio/video processing)
-- [Rust / Cargo](https://rustup.rs/) (`native/desktop-bridge` and its imported Rust modules)
 - Python 3.10+ (managed automatically by `uv`)
-
-Linux desktop development needs the native helper libraries. On Debian or
-Ubuntu, install the same packages used by CI:
-
-```bash
-sudo apt-get update
-sudo apt-get install -y \
-  libasound2-dev libxdo-dev libxtst-dev libx11-dev libxkbcommon-dev \
-  libwayland-dev libssl-dev pkg-config build-essential curl
-```
-
-See the [Linux source-build guide](../docs/install/linux.md#building-from-source)
-for Fedora and Arch packages.
 
 ### Clone & Run
 
@@ -50,23 +36,18 @@ for Fedora and Arch packages.
 git clone https://github.com/debpalash/VoiceStudio.git
 cd VoiceStudio
 bun install
-bun run setup:api  # prepare Python dependencies before starting Electron
 bun run dev
 ```
 
-This launches Electron with hot reload. Run source dependency setup explicitly before launching; the supervisor manages backend
-startup; do not launch a second backend. See [Electron setup](../electron/README.md).
+This prepares the Python environment, starts the backend and serves the web UI
+with hot reload. See [web UI setup](../electron/README.md).
 
 ```bash
-bun run build       # build Electron
-bun run start       # launch the built Electron app
-bun run dist        # package locally without publishing
-bun run smoke-test  # packaged startup, first-run consent, and native bridge
-bun run smoke-test -- --install  # also install and start the managed backend
-bun run dev:web     # maintained Electron renderer in a browser + backend
+bun run build       # production web bundle → frontend/dist (served by the backend)
+bun run check:web   # typecheck + unit tests + production build
 ```
 
-The legacy browser command starts both services:
+`bun run dev` starts both services:
 
 | Service | URL | What it does |
 |---------|-----|---|
@@ -81,13 +62,11 @@ cause doesn't scroll away with the terminal. The same death is also reported
 as a crash notice in the UI the next time the backend starts (see
 [docs/install/troubleshooting.md §14c](docs/install/troubleshooting.md)).
 
-### Retired desktop (Tauri)
+### No desktop app
 
-Tauri is sunset after v0.5.3 and receives no further development or backports.
-Use Electron for desktop contributions and reproduce desktop bugs there.
-Existing users should follow the [migration guide](../docs/electron-migration.md).
-The Tauri shell and its legacy UI entry points have been removed. Shared
-modules and native helpers used by Electron remain maintained.
+VoiceStudio is a web app served by the FastAPI backend (see `deploy/`). The
+Tauri and Electron desktop shells have been removed and receive no further
+development or backports; reproduce bugs in the browser UI.
 
 ---
 
@@ -100,14 +79,11 @@ VoiceStudio/
 │   ├── core/                # Config, prefs, constants
 │   └── services/            # TTS engines, ASR, dubbing, audio DSP
 │       └── tts_backend.py   # ← Multi-engine TTS registry
-├── electron/                # Active Electron desktop: main, preload, renderer
-├── native/                  # Desktop helpers used by Electron
-├── frontend/                # Transitional modules shared by Electron
-│   ├── src/
-│   │   ├── components/      # UI components
-│   │   ├── hooks/           # Custom React hooks
-│   │   ├── stores/          # Zustand state slices
-│   │   └── utils/           # Shared utilities
+├── electron/                # Web UI workspace (React + Vite); name kept for tooling
+│   └── src/
+│       ├── renderer/        # React app (routes, features, components, hooks)
+│       └── shared/          # Shared modules, i18n locales
+├── frontend/dist/           # Built web UI served by the backend (generated)
 ├── deploy/                  # Docker, CI configs
 ├── docs/                    # Screenshots, MCP config
 └── scripts/                 # Build & release scripts
@@ -136,7 +112,7 @@ Open an [issue](https://github.com/debpalash/VoiceStudio/issues/new) with:
    uv run pytest backend/ -x -q
 
    # Frontend build check
-   bun run check:electron
+   bun run check:web
    ```
 4. **Write a clear PR title** — it becomes the squash-merge commit message
 5. **Don't include** local machine stats, file paths, or private system info in PR descriptions
@@ -195,11 +171,6 @@ class MyEngineBackend(TTSBackend):
 - **CSS**: **Utilities-first + shadcn/ui, one stylesheet.** UI is built on the shadcn/ui primitives in `src/components/ui/` (wrapped by the `src/ui/` barrel, themed to the VoiceStudio palette), composed with Tailwind v4 utility classes. **All styling now lives in a single file — `src/index.css`**: the `@theme` / `[data-theme]` token foundation plus the irreducible set utilities can't express (`@keyframes`, glassmorphism/`backdrop-filter`, pseudo-elements, `:has()`, unlayered cascade overrides, and styling hooks on library-generated DOM like virtualized rows / WaveSurfer). The per-component `.css` files were eliminated in the CSS→Tailwind/shadcn migration — **do not create new ones.** Reach for shadcn primitives + utilities; if a rule is genuinely irreducible, add it to `src/index.css` with a provenance comment. (The only other `.css` is the test-only visual harness. See `docs/shadcn-migration.md`.)
 - **Naming**: `PascalCase` for components, `camelCase` for hooks and utils
 
-### Rust (shared native helpers)
-
-- **Format**: `cargo fmt` before committing
-- **Scope**: `native/desktop-bridge` and modules it imports; do not revive the archived Tauri shell.
-
 ---
 
 ## Frontend file structure & size limits
@@ -256,11 +227,8 @@ uv run pytest backend/ -x -q
 # Run a specific test file
 uv run pytest backend/tests/test_api.py -x -q
 
-# Electron desktop validation, from the repository root
-bun run check:electron
-
-# Shared native helper, when changed
-cargo check --manifest-path native/desktop-bridge/Cargo.toml
+# Web UI validation, from the repository root
+bun run check:web
 ```
 
 ---

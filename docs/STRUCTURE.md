@@ -113,9 +113,6 @@ VoiceStudio/
 │                                   skills-lock.json — followed by path, never symlinked
 ├── skills/                      ⟵ skills this repo publishes (voicestudio, voicestudio-maintainer)
 │
-├── infra/                       ⟵ edge/deploy workers (not the Docker deploy path)
-│   └── install-redirect/        voicestudio.sh/install — UA-sniffing installer worker
-│
 ├── deploy/                      ⟵ Docker deployment configs
 │   ├── Dockerfile               CUDA by default; CI builds the ROCm variant from the same
 │   │                            file via BASE_IMAGE / GPU_FLAVOR overrides

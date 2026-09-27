@@ -4,15 +4,10 @@
     "build": {
       "outputs": [
         "dist/**",
-        "build/**",
-        "out/**"
+        "../frontend/dist/**"
       ]
     },
     "dev": {
-      "cache": false,
-      "persistent": true
-    },
-    "desktop": {
       "cache": false,
       "persistent": true
     },

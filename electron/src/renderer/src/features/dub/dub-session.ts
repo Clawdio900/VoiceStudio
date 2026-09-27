@@ -43,7 +43,7 @@ import type {
   DubAgentTranslationRequest,
   DubAgentTranslationResult,
   RepairAgentId,
-} from '../../../../preload/index.d';
+} from '@/lib/bridge-types';
 export interface DubSegment {
   gain?: number;
   speed?: number;

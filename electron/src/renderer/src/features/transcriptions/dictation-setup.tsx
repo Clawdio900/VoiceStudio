@@ -4,7 +4,6 @@ import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { CheckIcon, DownloadIcon, MicIcon, XIcon } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { AgentFixButton } from '@/components/agent-fix-button';
 import { Progress } from '@/components/ui/progress';
 import { apiJson, describeError } from '@/lib/api/client';
 import { fmtBytes } from '@shared/components/settings/models/format';
@@ -181,7 +180,6 @@ export function DictationSetup({ onReady }: { onReady: () => void }) {
         >
           {t('nav.settings')}
         </Link>
-        <AgentFixButton request="Restore local dictation readiness. Diagnose the unavailable model catalogue or runtime, then install and activate the best supported dictation model through VoiceStudio's supported setup interfaces." />
       </div>
     );
   }
@@ -215,9 +213,6 @@ export function DictationSetup({ onReady }: { onReady: () => void }) {
           <span className="min-w-0 flex-1">
             {t('asr_missing.install_failed', { message: failed })}
           </span>
-          <AgentFixButton
-            request={`Restore local dictation readiness after the selected model install failed: ${failed}`}
-          />
         </div>
       )}
       {others.length > 0 && (

@@ -47,28 +47,21 @@ Run from the repository root:
 
 ```sh
 bun install
-bun run setup:api        # prepare the source Python runtime explicitly
-bun run dev              # Electron + supervised backend
-bun run typecheck        # Electron main, preload, and renderer
-bun run test             # Electron tests
-bun run check:electron   # types, tests, build, packaging contract
-bun run dist             # local installers; publishing disabled
+bun run dev              # backend + web UI dev server (http://localhost:3901)
+bun run typecheck        # web UI (renderer + shared)
+bun run test             # web UI unit tests (vitest)
+bun run build:web        # production bundle served by the backend
+bun run check:web        # types, tests, build
 ```
 
-`electron/src/main/` owns lifecycle, IPC, native helpers, and backend supervision;
-`electron/src/preload/` exposes the renderer bridge; `electron/src/renderer/src/`
-contains the React app. Keep privileged filesystem/process work out of the renderer.
-`backend/` supplies the shared Python API; `native/desktop-bridge/` supplies native
-capabilities. `frontend/` still serves the browser UI and legacy Tauri shell: do not
-remove it or rename internal `omnivoice` packages, environment keys, or data paths
-as a branding cleanup.
+VoiceStudio is a web app: `electron/src/renderer/src/` contains the React app
+(the `electron/` directory name is kept only for tooling), `backend/` supplies
+the Python API and serves the built UI, and `deploy/Dockerfile` is the shipped
+product. There is no desktop shell: do not reintroduce Electron main/preload,
+packaging, or native desktop helpers. Do not rename internal `omnivoice`
+packages, environment keys, or data paths as a branding cleanup.
 
-Electron is the default desktop. Tauri is retained for its final sunset update.
-Use `electron-build.yml` for artifact-only four-platform packaging rehearsals;
-inspect its results for Windows, Linux, macOS Intel, and macOS Apple Silicon.
-Do not dispatch release/publishing workflows to test packaging. Signing, updater
-migration, and successful installation are separate checks from a green build.
-The app version still comes from `frontend/package.json`; do not move or bump it
+The app version comes from the root `package.json`; do not move or bump it
 without an explicit versioning task.
 
 For backend tests, use the repo's CI dependencies and an empty temporary

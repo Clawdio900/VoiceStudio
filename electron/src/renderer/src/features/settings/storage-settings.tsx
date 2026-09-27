@@ -14,7 +14,6 @@ import { fmtBytes } from '@shared/components/settings/models/format';
 import { ModelsDirectorySettings } from './models-directory-settings';
 import { ResetSettings } from './reset-settings';
 import { DataDirectorySettings } from './data-directory-settings';
-import { UninstallSettings } from './uninstall-settings';
 import {
   warningText,
   type StorageWarning,
@@ -288,7 +287,6 @@ export function StorageSettings() {
       </SettingsSection>
       <HistoryRetention />
       <ResetSettings />
-      <UninstallSettings />
     </>
   );
 }

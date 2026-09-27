@@ -78,15 +78,6 @@ def test_demo_clip_is_not_gitignored():
         )
 
 
-def test_backend_is_a_bundled_electron_resource():
-    """The backend tree, including the demo clip, must ship with Electron."""
-    config = Path(_ROOT, "electron", "electron-builder.config.mjs").read_text(
-        encoding="utf-8"
-    )
-    assert "from: '../backend'" in config
-    assert "to: 'backend'" in config
-
-
 def _table_sql():
     return (
         "CREATE TABLE voice_profiles (id TEXT PRIMARY KEY, name TEXT, "

@@ -1,12 +1,14 @@
-## Active desktop: Electron only
+## Product shape: web app only
 
-Electron (`electron/`) is the only desktop and web UI. The Tauri shell and legacy
-UI entrypoints are removed; do not restore build, runtime, release, or CI paths for
-them. Triage reports from final Tauri installations toward the migration guide and
-preserve their immutable updater feeds. Some modules under `electron/src/shared/` remain
-temporarily shared by Electron; they are not a runnable app. New UI, IPC, setup
-instructions, tests, and browser assets belong in Electron; validate Electron on
-macOS, Windows and Linux.
+VoiceStudio is a web app: the FastAPI backend serves the browser UI built from the
+`electron/` workspace (`bun run build:web`, `vite.web.config.ts`), and the Docker
+image in `deploy/` is the shipped product. There is no desktop app: the Electron
+shell (main/preload, electron-builder packaging, native desktop bridge) and the
+Tauri shell are removed; do not restore build, runtime, release, or CI paths for
+them. The `electron/` directory name is kept only because the Dockerfile and
+tooling reference it. Some modules under `electron/src/shared/` remain shared by the
+renderer; they are not a runnable app. New UI, setup instructions, tests, and
+browser assets belong in `electron/src/renderer`; validate them in a browser.
 
 # Agent Rules — VoiceStudio
 

@@ -1,5 +1,4 @@
 import { Link } from '@tanstack/react-router';
-import { AgentFixButton } from '@/components/agent-fix-button';
 import type { useReferenceTranscript } from '@/hooks/use-reference-transcript';
 import { profileAudioUrl } from '@/lib/api/client';
 import { PortraitSearch } from './portrait-search';
@@ -258,7 +257,6 @@ export function OptionalDetails({
               <div className="space-y-1 text-xs text-muted-foreground">
                 <p>{t('asr_missing.message')}</p>
                 <div className="flex flex-wrap items-center gap-2">
-                  <AgentFixButton request="Restore local reference-audio transcription. Install and activate the best compatible ASR model through VoiceStudio, preserve the uploaded reference and manual transcript, then verify automatic transcription is ready to retry." />
                   <Button
                     variant="ghost"
                     size="sm"

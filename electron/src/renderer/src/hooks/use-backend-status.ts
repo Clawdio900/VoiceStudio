@@ -1,13 +1,9 @@
 import { useSyncExternalStore } from 'react';
 import { onlineManager } from '@tanstack/react-query';
 
-// Derived from the global `Window.voicestudio` declaration (src/preload/index.d.ts,
-// included by tsconfig.web.json) rather than imported by path: with
-// allowImportingTsExtensions a `.d.ts` import resolves to the preload's `.ts`
-// source, which the renderer project must not compile.
-export type VoiceStudioBridge = Window['voicestudio'];
-export type BackendStatus = Awaited<ReturnType<VoiceStudioBridge['backend']['getStatus']>>;
-export type BackendStage = BackendStatus['stage'];
+import type { BackendStage, BackendStatus, VoiceStudioBridge } from '@/lib/bridge-types';
+
+export type { BackendStage, BackendStatus, VoiceStudioBridge };
 
 /** Used when the bridge is absent (vitest, a plain browser tab): behave as if the backend is up. */
 export const FALLBACK_BACKEND_STATUS: BackendStatus = {

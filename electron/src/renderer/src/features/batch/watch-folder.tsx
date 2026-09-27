@@ -9,7 +9,7 @@ import {
   createIngestTracker,
   WATCH_POLL_MS,
 } from '@shared/utils/watchFolderTracker';
-import type { WatchSelection } from '../../../../preload/index.d';
+import type { WatchSelection } from '@/lib/bridge-types';
 
 export function WatchFolder({
   langs,

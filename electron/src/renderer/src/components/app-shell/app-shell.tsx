@@ -3,7 +3,6 @@ import { WorkspaceSidebar } from './workspace-sidebar';
 import { CommandPalette } from '@/components/command-palette';
 import { Outlet, useRouterState } from '@tanstack/react-router';
 import { BackendGate } from '../backend-gate';
-import { RepairAgentDock } from './repair-agent-dock';
 import { isMac } from '../bridge';
 import { cn } from '@/lib/utils';
 import { useBackendStatus } from '@/hooks/use-backend-status';
@@ -38,11 +37,10 @@ export function AppShell() {
               <div className="min-h-0 flex-1 overflow-hidden">
                 <Outlet />
               </div>
-              <RepairAgentDock />
             </SettingsWorkspace>
           </>
         ) : (
-          <BackendGate repairDock={<RepairAgentDock />}>
+          <BackendGate>
             <CommandPalette />
             <WorkspaceSidebar />
             <main className="@container relative flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -50,7 +48,6 @@ export function AppShell() {
                 <Outlet />
               </div>
               <SponsorFooter />
-              <RepairAgentDock />
             </main>
           </BackendGate>
         )}

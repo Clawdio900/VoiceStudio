@@ -7,7 +7,7 @@ import { ExternalLink } from './external-link';
 import { buildIssueSearchUrl } from '@shared/utils/bugReportDocument';
 import { Component, useEffect, type ReactNode, type ErrorInfo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BotIcon, CircleAlertIcon } from 'lucide-react';
+import { CircleAlertIcon } from 'lucide-react';
 import { scrubText } from '@shared/utils/scrub';
 import { ReportBug } from './report-bug';
 import { Button } from './ui/button';
@@ -81,19 +81,6 @@ export function ErrorRecovery({
         <div className="flex flex-wrap items-start gap-2">
           <Button size="sm" onClick={reset}>
             {t('errors.tryAgain')}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() =>
-              openRepairAgent(
-                scrubText([failure.message, failure.stack].filter(Boolean).join('\n')),
-                true,
-              )
-            }
-          >
-            <BotIcon />
-            {t('repairAgent.title')}
           </Button>
           <ExternalLink
             href={urlFor(

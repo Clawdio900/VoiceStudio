@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { PipelineFailure } from '@/components/pipeline-failure';
-import { AgentFixButton } from '@/components/agent-fix-button';
 import { ProfileAvatar } from '@/components/profile-avatar';
 import { WaveformPlayer } from '@/components/waveform-player';
 import { useEngines } from '@/hooks/use-engines';
@@ -253,9 +252,6 @@ export function ConvertVoice() {
                 >
                   {t('modelSettings.models')}
                 </Link>
-                <AgentFixButton
-                  request={`Restore local ASR readiness for Voice Conversion, then keep the current source and target voice available for retry. Conversion reported: ${error}`}
-                />
               </div>
             ) : undefined
           }

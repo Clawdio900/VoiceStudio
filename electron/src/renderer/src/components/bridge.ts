@@ -1,7 +1,8 @@
-/** The preload contract, reached through the global augmentation in src/preload/index.d.ts. */
-export type VoiceStudioBridge = Window['voicestudio'];
+import type { VoiceStudioBridge } from '@/lib/bridge-types';
 
-/** The preload bridge, or null outside Electron (vitest, a plain browser tab). */
+export type { VoiceStudioBridge };
+
+/** The optional host bridge; null in the web app (and in vitest unless a test stubs it). */
 export function getBridge(): VoiceStudioBridge | null {
   if (typeof window === 'undefined') return null;
   return 'voicestudio' in window && window.voicestudio ? window.voicestudio : null;

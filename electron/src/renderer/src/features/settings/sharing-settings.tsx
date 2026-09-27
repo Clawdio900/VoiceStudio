@@ -20,7 +20,6 @@ import { getBridge } from '@/components/bridge';
 import { apiJson, describeError } from '@/lib/api/client';
 import { SettingsRow, SettingsSection } from './settings-layout';
 import { McpBindingsSettings } from './mcp-bindings-settings';
-import { RemoteBackendSettings } from './remote-backend-settings';
 
 interface NetworkState {
   enabled: boolean;
@@ -240,7 +239,6 @@ export function SharingSettings() {
   const state = network.data;
   return (
     <>
-      <RemoteBackendSettings />
       <SettingsSection icon={WifiIcon} title={t('sharing.title')}>
         <SettingsRow
           id="sharing-lan"

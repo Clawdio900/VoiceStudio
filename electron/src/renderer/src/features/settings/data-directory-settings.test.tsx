@@ -1,33 +1,13 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, expect, it, vi } from 'vitest';
 
-const mock = vi.hoisted(() => ({
-  api: vi.fn(),
-  choose: vi.fn(),
-  relocate: vi.fn(),
-  subscribe: vi.fn(() => () => undefined),
-  toastError: vi.fn(),
-  toastSuccess: vi.fn(),
-  toastWarning: vi.fn(),
-}));
+const mock = vi.hoisted(() => ({ api: vi.fn() }));
 
 vi.mock('@/lib/api/client', async (load) => {
   const actual = await load<typeof import('@/lib/api/client')>();
   return { ...actual, apiJson: mock.api };
 });
-vi.mock('@/components/bridge', () => ({
-  getBridge: () => ({
-    maintenance: {
-      chooseDataDirectory: mock.choose,
-      relocateDataDirectory: mock.relocate,
-      onRelocationProgress: mock.subscribe,
-    },
-  }),
-}));
-vi.mock('sonner', () => ({
-  toast: { error: mock.toastError, success: mock.toastSuccess, warning: mock.toastWarning },
-}));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
@@ -39,8 +19,8 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-function renderSettings() {
-  mock.api.mockResolvedValue({ data_dir: 'C:\\VoiceStudio-old' });
+it('shows the server data directory without offering a local relocation', async () => {
+  mock.api.mockResolvedValue({ data_dir: '/data/voicestudio' });
   render(
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
@@ -48,40 +28,7 @@ function renderSettings() {
       <DataDirectorySettings />
     </QueryClientProvider>,
   );
-}
-
-it('shows the verified move plan and sends only its one-shot authorization', async () => {
-  mock.choose.mockResolvedValue({
-    authorization: 'move-token',
-    source: 'C:\\VoiceStudio-old',
-    target: 'D:\\VoiceStudio',
-    size_bytes: 2048,
-    file_count: 7,
-  });
-  mock.relocate.mockResolvedValue({
-    path: 'D:\\VoiceStudio',
-    size_bytes: 2048,
-    file_count: 7,
-    removed_source: true,
-  });
-  renderSettings();
-
-  await screen.findByText('C:\\VoiceStudio-old');
-  fireEvent.click(screen.getByRole('button', { name: 'settings.data_move_choose' }));
-  await screen.findByText('D:\\VoiceStudio');
-  fireEvent.click(screen.getByRole('button', { name: 'settings.data_move_confirm' }));
-
-  await waitFor(() => expect(mock.relocate).toHaveBeenCalledWith('move-token'));
-  expect(mock.relocate).not.toHaveBeenCalledWith(expect.stringContaining('VoiceStudio'));
-  await waitFor(() => expect(mock.toastSuccess).toHaveBeenCalled());
-});
-
-it('turns unsafe destination errors into a clear localized message', async () => {
-  mock.choose.mockRejectedValue(new Error('target_not_empty'));
-  renderSettings();
-  fireEvent.click(await screen.findByRole('button', { name: 'settings.data_move_choose' }));
-  await waitFor(() =>
-    expect(mock.toastError).toHaveBeenCalledWith('settings.data_move_error_target_not_empty'),
-  );
-  expect(mock.relocate).not.toHaveBeenCalled();
+  expect(await screen.findByText('/data/voicestudio')).toBeInTheDocument();
+  expect(mock.api).toHaveBeenCalledWith('/system/info', expect.anything());
+  expect(screen.queryByRole('button')).not.toBeInTheDocument();
 });

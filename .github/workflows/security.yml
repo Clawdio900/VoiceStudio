@@ -183,9 +183,9 @@ jobs:
         with:
           bun-version: "1.2"
 
-      # `bun audit` reports advisories against the Electron lockfile. Non-gating
+      # `bun audit` reports advisories against the web UI lockfile. Non-gating
       # for the same reason; also tolerant of older bun without the subcommand.
-      - name: bun audit (Electron)
+      - name: bun audit (web UI)
         continue-on-error: true
         working-directory: electron
         run: |

@@ -1,5 +1,5 @@
 // Vite+ (`vp test` / `vp check`) config for the RENDERER unit tests only.
-// The Electron dev/build pipeline lives in electron.vite.config.ts.
+// The production web bundle is built by vite.web.config.ts.
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -31,7 +31,6 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/renderer/src/test/setup.ts'],
     include: [
-      'src/main/**/*.test.{ts,tsx}',
       'src/renderer/**/*.test.{ts,tsx}',
       'src/shared/repair-request.test.ts',
     ],

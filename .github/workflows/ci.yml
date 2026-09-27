@@ -1,5 +1,5 @@
-# PR-gated continuous integration for the maintained Electron desktop,
-# shared backend, web frontend and native bridge.
+# PR-gated continuous integration for the shared backend and the web UI
+# (electron/ workspace, built with vite.web.config.ts and served by FastAPI).
 
 name: CI
 
@@ -18,23 +18,6 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  installer:
-    name: Electron installer contracts
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: Shell installers and Worker routing
-        working-directory: electron
-        run: |
-          sh -n ../scripts/install.sh
-          node --test tests/shell-installer.test.mjs tests/installer-worker.test.mjs
-      - name: PowerShell installer flows
-        shell: pwsh
-        run: ./electron/tests/powershell-installer.ps1
-
   test:
     name: Tests (backend + frontend)
     runs-on: ubuntu-22.04
@@ -122,23 +105,22 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-bun-
 
-      - name: Install Electron deps
-        # --frozen-lockfile so an Electron workspace change that forgets to
+      - name: Install web UI deps
+        # --frozen-lockfile so a web UI workspace change that forgets to
         # regenerate the root bun.lock fails HERE (fast) instead of only in the
         # Docker build (deploy/Dockerfile), which is what reddened main on #485.
         run: bun install --frozen-lockfile
 
-      # Electron used to be built only after a release started, so renderer,
-      # preload and packaging regressions could pass the required PR gate.
-      # Keep this command shared with electron-release.yml through the root script.
-      - name: Electron typecheck, tests and production contract
-        run: bun run check:electron
+      # Same command developers run locally: typecheck, unit tests and the
+      # production web build that deploy/Dockerfile ships.
+      - name: Web UI typecheck, tests and production build
+        run: bun run check:web
 
-      # Browser workflow smokes exercise the maintained Electron renderer after
+      # Browser workflow smokes exercise the web UI after
       # the production build/typecheck/test contract above succeeds.
       - name: Install Playwright chromium
         run: bunx playwright install --with-deps chromium
-      - name: Electron renderer workflow smokes
+      - name: Web UI workflow smokes
         shell: bash
         run: |
           set -euo pipefail
@@ -147,7 +129,7 @@ jobs:
           export PLAYWRIGHT_CHANNEL=chromium
           export HF_HUB_OFFLINE=1
           export HF_HUB_CACHE="$(mktemp -d)"
-          bun run --cwd electron smoke:server > /tmp/voicestudio-electron-smoke.log 2>&1 &
+          bun run --cwd electron smoke:server > /tmp/voicestudio-web-smoke.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           for _ in {1..60}; do
@@ -157,36 +139,12 @@ jobs:
             sleep 0.25
           done
           curl --fail --silent --show-error "$VOICESTUDIO_UI_URL" >/dev/null || {
-            cat /tmp/voicestudio-electron-smoke.log
+            cat /tmp/voicestudio-web-smoke.log
             exit 1
           }
           node electron/tests/playback-smoke.mjs
           node electron/tests/dub-smoke.mjs
           node electron/tests/longform-layout-smoke.mjs
-
-  linux-native-package:
-    name: Linux native package
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: native/desktop-bridge -> target
-          key: linux-native-package
-      - name: Install native build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libxdo-dev libxtst-dev libx11-dev libxkbcommon-dev libwayland-dev libssl-dev pkg-config
-      - name: Verify relocation without build-time libraries
-        run: node --test electron/tests/native-linux-libraries.test.mjs
-      - name: Build and validate real Linux native package
-        run: |
-          cargo build --locked --release --manifest-path native/desktop-bridge/Cargo.toml
-          node electron/tests/native-linux-package.mjs
 
   # ── Cross-platform Python runtime smoke (Phase 0 GATE-02) ───────────────
   # Loads the frozen tests/fixtures/omnivoice_data/ fixture and boots the

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import i18n from '@/i18n';
-import type { BackendStatus } from '../../../preload/index.d';
+import type { BackendStatus } from '@/lib/bridge-types';
 import { BackendGate } from './backend-gate';
 
 const { backendStatus, platform } = vi.hoisted(() => ({
@@ -113,17 +113,16 @@ it('shows package installation after the last large download instead of a stale 
   expect(screen.queryByText('Downloaded scipy')).not.toBeInTheDocument();
 });
 
-it('keeps agent repair available when the backend is down', () => {
+it('offers a retry when the backend is down', () => {
   backendStatus.stage = 'failed';
 
   render(
-    <BackendGate repairDock={<div>repair dock</div>}>
+    <BackendGate>
       <div>workspace</div>
     </BackendGate>,
   );
 
-  expect(screen.getByText('repair dock')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: i18n.t('repairAgent.fix') })).toBeEnabled();
+  expect(screen.getByRole('button', { name: i18n.t('backend.retry') })).toBeEnabled();
 });
 
 it('explains unsupported Windows proxy bypass rules before retrying setup', () => {

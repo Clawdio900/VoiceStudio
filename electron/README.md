@@ -1,17 +1,15 @@
-# VoiceStudio — Electron desktop app
+# VoiceStudio — web UI
 
-Electron is the only maintained desktop app for voice cloning, stories, dubbing,
-transcription, voice design, and workflows. Tauri is archived at v0.5.3. For
-existing installations, see [migration notes](../docs/electron-migration.md).
-
-The runtime supervisor manages the local FastAPI backend. Network integrations
-and remote workers require configuration; local generation stays on your machine.
+The browser UI for voice cloning, stories, dubbing, transcription, voice design,
+and workflows. It is built into `../frontend/dist` and served by the FastAPI
+backend (see `deploy/Dockerfile`). There is no desktop shell: the directory keeps
+the name `electron/` only because the Docker build and tooling reference it.
 
 ## Stack
 
 | Layer     | Choice                                                                                       |
 | --------- | -------------------------------------------------------------------------------------------- |
-| Shell     | Electron 44, electron-vite 6 (Vite 8 / Rolldown), electron-builder                           |
+| Build     | Vite 8 / Rolldown (`vite.web.config.ts`)                                                     |
 | Toolchain | Vite+ (`vp` — vitest, oxlint, oxfmt), TypeScript 7 (tsgo), bun                               |
 | UI        | React 19, Tailwind v4, shadcn v4 on **Base UI** (`base-nova`), lucide, sonner, wavesurfer.js |
 | Data      | TanStack Query, Router (hash history), Form, Store, Virtual, Pacer                           |
@@ -22,53 +20,43 @@ and remote workers require configuration; local generation stays on your machine
 ```sh
 # From the repository root
 bun install
-bun run setup:api  # prepare Python dependencies before starting Electron
-bun run dev        # electron-vite: main + preload + renderer with HMR
+bun run dev        # backend on :3900 + Vite dev server on :3901 with HMR
 ```
 
-On launch the shell probes `http://127.0.0.1:3900`. If a backend is already
-running (for example `bun run dev:api` from the repo root) it **attaches**;
-otherwise it checks the prepared `.venv` imports, **spawns** its Python interpreter directly, and
-supervises it (restart on crash, exit code 78 = port already in use). The
-child's stdin is the liveness signal — closing it makes the backend exit.
+`bun run dev` prepares the Python environment, starts the backend and serves the
+UI at `http://localhost:3901`. To run only the UI against a backend that is
+already up, use `bun run --cwd electron dev:web`.
 
-Environment knobs: `OMNIVOICE_PORT` (backend port), `VOICESTUDIO_UI_PORT`
-(renderer dev server, default 3902), `VOICESTUDIO_SKIP_BACKEND=1` (never
-spawn, only attach), `OMNIVOICE_BACKEND_CMD` (argv override, JSON array or
-whitespace-separated), `OMNIVOICE_STARTUP_BUDGET_S` (default 300).
+Environment knobs: `OMNIVOICE_PORT` (backend port, default 3900) and
+`VOICESTUDIO_UI_PORT` (UI dev server, default 3901).
 
 ## Same-origin API
 
-The renderer never fetches `127.0.0.1:3900` directly (no CORS games). It calls
+The UI never fetches `127.0.0.1:3900` directly (no CORS games). It calls
 app-relative `/api/...`:
 
-- dev — the renderer dev server proxies `/api` to the backend;
-- prod — the renderer is served from the privileged `app://voicestudio/`
-  scheme and the main process proxies `/api/*` with `net.fetch`.
+- dev — the Vite dev server proxies `/api` to the backend;
+- prod — the backend serves the built UI and the API from the same origin.
 
 ## Quality gates
 
 ```sh
 bun run typecheck   # tsgo, both projects
-bun run check:electron # types, tests, build, packaging contract
-bun run smoke-test  # packaged Electron launch + first-run/native bridge checks
-bun run smoke-test -- --install  # also install and start an isolated managed backend
+bun run lint        # oxlint
 bun run test        # vitest (jsdom)
-bun run build       # electron-vite build → out/
-bun run dist        # + electron-builder → release/
+bun run build:web   # production bundle → ../frontend/dist
+bun run check:web   # (repo root) typecheck + tests + build
 ```
 
-The app version is **not** stored here: `electron.vite.config.ts` and
-`electron-builder.config.mjs` reads it from the root `package.json`, the single
-source of truth.
+The app version is **not** stored here: `vite.web.config.ts` reads it from the
+root `package.json`, the single source of truth.
 
 ## Layout
 
 ```
-src/main/       backend supervisor, app:// protocol + /api proxy, IPC, window
-src/preload/    contextBridge → window.voicestudio (typed in index.d.ts)
-src/renderer/   React app: routes/, features/clone/, components/, lib/, hooks/
-CONTRACT.md     module contracts shared by main, preload and renderer
+src/renderer/   React app: routes/, features/, components/, lib/, hooks/
+src/shared/     shared modules, i18n locales and legacy JS components
+CONTRACT.md     module contracts for the renderer and the backend API
 ```
 
 ## Cloning workspace
@@ -85,11 +73,7 @@ Playback and export appear below the composer after generation.
 Layout references: T3 Code's `AppSidebarLayout`, `PreviewPanelShell`,
 `RightPanelTabs`, and the repository's desktop product screenshot.
 
-The sidebar extends through the native title-bar row. Pane headers provide window
-drag regions and reserve space for native caption controls; engine status and
-theme switching live at the foot of the sidebar. The Electron shell reuses the
-canonical VoiceStudio artwork and platform icons retained with the archived shell;
-its packaged uv tool is staged under `electron/build/uv`.
+Engine status and theme switching live at the foot of the sidebar.
 
 Typography uses locally bundled Inter Variable with system UI fallbacks with shared roles: 14px/20px interface text,
 13px/20px labels, 12px/16px metadata, and 16px/28px script text. Controls use
@@ -182,15 +166,6 @@ Saved voices, upload, and recording are available directly in the main content
 area. A ready voice reveals and focuses the script editor; the composer appears
 only at that stage. Change voice preserves the draft and can be canceled.
 An in-flight generation retains its cancellation controls.
-
-Batch dubbing can watch a selected local folder. Existing files are skipped;
-new videos are queued only after their size and modification time match across
-two five-second scans. The current language, voice and background settings apply
-to each arrival. Pause holds future arrivals; Stop or leaving the batch view
-releases access. Uploads stream through the shared native folder implementation,
-without loading whole videos into the renderer or sending filesystem paths to
-the backend. Folder replacement or loss of access stops watching with a message.
-This requires the native desktop helper; it is not exposed in the web preview.
 
 Gallery > My Imports accepts local audio/video clips and portable voice bundles.
 URL downloads and video searches run only when submitted. Imported clips can be

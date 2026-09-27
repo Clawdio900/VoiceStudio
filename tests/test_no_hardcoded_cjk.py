@@ -45,7 +45,6 @@ _ALLOWED_PREFIXES = ("electron/src/shared/i18n/", "electron/src/renderer/src/i18
 
 # Functional / data / documentation files where CJK is intentional and required.
 _ALLOWED_FILES = {
-    "electron/src/main/blank-window-guard.ts",
     # Documentation & translated docs
     "README.md",                                  # native language-switcher link
     "README_CN.md",                               # Chinese README (a translation)

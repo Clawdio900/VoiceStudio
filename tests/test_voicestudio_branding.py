@@ -30,7 +30,7 @@ def test_current_version_is_in_lockstep_everywhere() -> None:
 
 
 def test_visible_brand_surfaces_say_voicestudio() -> None:
-    visible_files = ("electron/build/Info.plist", "electron/src/renderer/index.html")
+    visible_files = ("electron/src/renderer/index.html",)
     for path in visible_files:
         text = (ROOT / path).read_text()
         assert "VoiceStudio" in text, path
@@ -93,12 +93,11 @@ def test_compatibility_identifiers_stay_stable() -> None:
     package = json.loads((ROOT / "package.json").read_text())
     assert package["name"] == "omnivoice-studio-monorepo"
     assert 'name = "omnivoice"' in (ROOT / "pyproject.toml").read_text()
-    assert "com.voicestudio.desktop" in (ROOT / "electron/electron-builder.config.mjs").read_text()
 
 
-def test_active_source_launch_is_electron_and_web_ports_clean_quietly() -> None:
+def test_active_source_launch_is_web_and_ports_clean_quietly() -> None:
     scripts = json.loads((ROOT / "package.json").read_text())["scripts"]
-    assert scripts["dev"] == "bun run --cwd electron dev"
+    assert scripts["dev"] == "bun run dev:web"
     assert not any("tauri" in name for name in scripts)
     command = scripts["predev:web"]
     assert "bun scripts/clear-dev-ports.mjs 3900 3901" in command
@@ -111,13 +110,3 @@ def test_icon_rail_has_no_static_section_captions_and_keeps_air_between_items() 
         assert stale_caption not in rail
     assert "pt-[18px]" in rail
     assert "gap-[9px]" in rail
-
-
-def test_electron_launch_preserves_an_existing_backend():
-    scripts = json.loads((ROOT / "package.json").read_text())["scripts"]
-    for name in ("predev", "predesktop"):
-        assert "clear-dev-ports" not in scripts[name]
-        assert "desktop-runtime-preflight" not in scripts[name]
-    assert scripts["dev"] == "bun run --cwd electron dev"
-    assert scripts["desktop-prod:run"] == "bun run start"
-    assert scripts["start"] == "bun run --cwd electron start"

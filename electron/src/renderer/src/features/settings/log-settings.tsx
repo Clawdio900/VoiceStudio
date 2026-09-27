@@ -2,14 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { CrashDetails } from '@/components/crash-details';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { BotIcon, CopyIcon, FolderOpenIcon, RefreshCwIcon, Trash2Icon } from 'lucide-react';
+import { CopyIcon, FolderOpenIcon, RefreshCwIcon, Trash2Icon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { apiJson } from '@/lib/api/client';
 import { getBridge } from '@/components/bridge';
 import { useBackendStatus } from '@/hooks/use-backend-status';
 import { logSeverity, stripLogAnsi, type LogSeverity } from '@/lib/log-format';
-import { openRepairAgent } from '@/lib/repair-agent-events';
 import { cn } from '@/lib/utils';
 import {
   getFrontendLogs,
@@ -49,11 +48,6 @@ export function LogSettings() {
     line.toLocaleLowerCase().includes(filter.toLocaleLowerCase()),
   );
   const text = visibleLines.map(stripLogAnsi).join('');
-  const problemReport = visibleLines
-    .filter((line) => ['error', 'warning'].includes(logSeverity(line)))
-    .slice(-40)
-    .map(stripLogAnsi)
-    .join('');
   useEffect(() => {
     if (follow.current && scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight;
   }, [text]);
@@ -102,17 +96,6 @@ export function LogSettings() {
           }}
           className="mx-1 h-7 min-w-40 flex-1 @2xl:max-w-xl"
         />
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label={t('repairAgent.title')}
-          title={t('repairAgent.title')}
-          disabled={!problemReport}
-          onClick={() => openRepairAgent(problemReport)}
-        >
-          <BotIcon />
-          <span className="hidden @3xl:inline">{t('repairAgent.title')}</span>
-        </Button>
         <Button
           variant="ghost"
           size="sm"

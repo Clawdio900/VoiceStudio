@@ -17,11 +17,6 @@ def _read(rel):
         return file.read()
 
 
-def test_electron_recognises_the_final_tauri_identity():
-    source = _read("electron/src/main/backend.ts")
-    assert "const TAURI_APP_ID = 'com.debpalash.omnivoice-studio'" in source, WHY
-
-
 def test_the_backend_data_directories_are_unchanged():
     source = _read("backend/core/config.py")
     for literal in (
@@ -51,9 +46,3 @@ def test_the_model_class_name_is_unchanged():
 def test_the_public_env_var_prefix_is_unchanged(env_var):
     source = _read("backend/core/config.py") + _read("backend/core/user_env.py")
     assert env_var in source, WHY
-
-
-def test_the_product_and_artifact_names_are_voicestudio():
-    builder = _read("electron/electron-builder.config.mjs")
-    assert "productName: 'VoiceStudio'" in builder
-    assert "VoiceStudio-Electron-${version}" in builder

@@ -1219,25 +1219,10 @@ than a patch. Track it in [#1931](https://github.com/debpalash/VoiceStudio/issue
 
 ## Uninstalling / removing all of VoiceStudio's data
 
-VoiceStudio is fully local — no accounts, no services, nothing to deactivate. To
-reclaim disk space or fully remove it, run the uninstaller, which lists every
-VoiceStudio folder with its size (dry-run first) and deletes on `--yes`:
-
-```bash
-scripts/uninstall.sh            # macOS/Linux — dry-run
-scripts/uninstall.sh --yes      # delete app data/env/config/logs
-scripts/uninstall.sh --yes --models   # also delete the shared HF model cache
-```
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\uninstall.ps1 -Yes   # Windows
-```
-
-The two big folders are the **model cache** (Hugging Face weights, several GB)
-and the **managed Python env** (`project/.venv`, a few GB). The complete
-per-platform path list, env-var overrides, portable-mode note, and the steps to
-remove the app binary itself are in
-[docs/install/uninstall.md](uninstall.md).
+VoiceStudio is self-hosted — no accounts, nothing to deactivate. To remove it,
+run `docker compose -f deploy/docker-compose.server.yml down -v` (deletes data
+and models too), or see [docs/install/uninstall.md](uninstall.md) for source
+installs.
 
 **Linked issue:** [#1089](https://github.com/debpalash/VoiceStudio/issues/1089)
 

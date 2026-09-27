@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import type { UpdateState } from '../../../../preload/index.d';
+import type { UpdateState } from '@/lib/bridge-types';
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),

@@ -18,7 +18,7 @@ import { WorkspaceHeader } from '@/components/app-shell/workspace-header';
 import { ExternalLink } from '@/components/external-link';
 import { getBridge } from '@/components/bridge';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import type { VoiceStudioBridge } from '../../../../preload/index.d';
+import type { VoiceStudioBridge } from '@/lib/bridge-types';
 import './pro-page.css';
 
 const planUrl = (plan: string, quantity: number) =>

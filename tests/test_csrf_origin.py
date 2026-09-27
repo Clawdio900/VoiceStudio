@@ -97,9 +97,9 @@ def test_explicit_allowed_origin_is_exact_and_port_bound(monkeypatch):
     assert origin_allowed(_connection(origin="https://ui.test.evil")) is False
 
 
-def test_default_tauri_origins_are_allowed():
-    assert origin_allowed(_connection(origin="tauri://localhost")) is True
-    assert origin_allowed(_connection(origin="http://tauri.localhost")) is True
+def test_desktop_shell_origins_are_not_trusted_by_default():
+    for origin in ("tauri://localhost", "http://tauri.localhost", "app://voicestudio"):
+        assert origin_allowed(_connection(origin=origin)) is False
 
 
 def test_invalid_ui_port_falls_back_to_the_default_allowlist(monkeypatch):
@@ -193,9 +193,3 @@ def test_side_effectful_get_accepts_all_three_browser_proofs():
 
     assert cookie_csrf_allowed(connection, side_effectful_get=True) is True
 
-def test_electron_origin_is_exact_and_respects_explicit_allowlists(monkeypatch):
-    assert origin_allowed(_connection(origin="app://voicestudio")) is True
-    for origin in ("app://evil", "app://voicestudio.evil", "app://voicestudio:3900", "app://user@voicestudio", "app://voicestudio/path"):
-        assert origin_allowed(_connection(origin=origin)) is False
-    monkeypatch.setenv("OMNIVOICE_ALLOWED_ORIGINS", "https://ui.test")
-    assert origin_allowed(_connection(origin="app://voicestudio")) is False

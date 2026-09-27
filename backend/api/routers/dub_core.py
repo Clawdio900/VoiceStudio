@@ -61,7 +61,7 @@ def _cookie_transport_allowed(
     except ValueError:
         return False
     return is_local_host(client_host or "") and (
-        is_local_host(origin_host) or origin_host == "tauri.localhost"
+        is_local_host(origin_host)
     )
 
 
@@ -846,7 +846,7 @@ async def dub_ingest_url(req: DubIngestUrlRequest, request: Request):
     ):
         raise HTTPException(
             status_code=403,
-            detail="Cookie exports require HTTPS or the local desktop app.",
+            detail="Cookie exports require HTTPS or a local UI.",
         )
     os.makedirs(job_dir, exist_ok=True)
     cookie_path = _stage_cookie_export(req.cookie_file)

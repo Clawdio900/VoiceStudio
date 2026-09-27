@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AgentFixButton } from '@/components/agent-fix-button';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -27,12 +26,11 @@ import { useBackendStatus } from '@/hooks/use-backend-status';
 import i18n, { APP_LANGUAGE_ITEMS, APP_LANGUAGES, setAppLanguage, type AppLocale } from '@/i18n';
 import { brandIcon } from '@/lib/brand';
 import { cn } from '@/lib/utils';
-import type { RuntimeRegion } from '../../../preload/index.d';
+import type { RuntimeRegion } from '@/lib/bridge-types';
 import { getBridge, isMac } from './bridge';
 
 interface BackendGateProps {
   children: ReactNode;
-  repairDock?: ReactNode;
 }
 
 const RETRYABLE = new Set(['crashed', 'failed', 'port_in_use']);
@@ -72,7 +70,7 @@ function formatEta(seconds: number): string {
  * Holds the page until the local backend answers. The shell (top bar, rail,
  * footer) stays mounted around it, so the splash-to-page swap shifts nothing.
  */
-export function BackendGate({ children, repairDock }: BackendGateProps) {
+export function BackendGate({ children }: BackendGateProps) {
   const { t } = useTranslation();
   const status = useBackendStatus();
   const [reachedReady, setReachedReady] = useState(false);
@@ -478,15 +476,7 @@ export function BackendGate({ children, repairDock }: BackendGateProps) {
                   {t('settings.remote_backend_use_local')}
                 </Button>
               )}
-              <AgentFixButton
-                request={`Restore the VoiceStudio local backend. Current stage: ${status.stage}. ${status.message || ''} Inspect Electron status, restart or resume runtime setup as needed, wait until the backend is ready, and verify health. Do not clean reinstall or change user consent.`}
-              />
             </div>
-          ) : null}
-          {setupFailed ? (
-            <AgentFixButton
-              request={`Resume and repair the interrupted VoiceStudio runtime setup. Current issue: ${status.setupIssue || 'unknown'}. ${status.message || ''} Use the Electron runtime setup control, wait for completion, and verify backend health. Do not clean reinstall or change user consent.`}
-            />
           ) : null}
           {status.logTail.length > 0 ? (
             <Collapsible open={logOpen} onOpenChange={setLogOpen} className="w-full">
@@ -519,7 +509,6 @@ export function BackendGate({ children, repairDock }: BackendGateProps) {
           />
         </div>
       </div>
-      {!recovering && repairDock}
     </div>
   );
   if (recovering)

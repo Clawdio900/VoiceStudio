@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { apiFetch, apiJson } from '@/lib/api/client';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
-import type { UpdateState } from '../../../../preload/index.d';
+import type { UpdateState } from '@/lib/bridge-types';
 
 interface SystemNotification {
   id: string;
