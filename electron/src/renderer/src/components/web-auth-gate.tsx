@@ -33,7 +33,14 @@ export function WebAuthGate({ children }: { children: ReactNode }) {
       .catch((error) => {
         if (!(error instanceof ApiError) || (error.status !== 401 && error.status !== 403)) {
           setChecked(true);
+          return;
         }
+        // The client only announces `ov:auth-required` for recognised gate
+        // responses. Any other 401/403 (a stale session, an origin rejection)
+        // must still end the probe with the sign-in form, never an endless
+        // "Loading…" screen.
+        setMode((current) => current ?? 'apikey');
+        setChecked(true);
       });
     return () => window.removeEventListener('ov:auth-required', required);
   }, []);
