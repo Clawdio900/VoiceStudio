@@ -13,7 +13,7 @@
 #   6. builds and starts VoiceStudio on https://<LAN IP>:$PORT
 #
 # Environment overrides:
-#   INSTALL_DIR=/opt/voicestudio  PORT=9999  LAN_IP=<auto>  HF_TOKEN=<none>
+#   INSTALL_DIR=/opt/voicestudio  PORT=9999  LAN_IP=<auto>  HF_TOKEN=<none>  FORCE_CPU=0
 #   REPO_URL=https://github.com/Clawdio900/VoiceStudio.git  BRANCH=webapp-server
 set -euo pipefail
 
@@ -50,6 +50,16 @@ if ! command -v nvidia-smi >/dev/null 2>&1 || ! nvidia-smi >/dev/null 2>&1; then
   die "NVIDIA driver not ready."
 fi
 nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader | sed 's/^/    GPU: /'
+# The bundled PyTorch build only ships kernels for compute capability >= 7.0
+# (Volta and newer). Older GPUs are detected by CUDA but fail at kernel launch,
+# so run on CPU for them instead of handing the container a GPU it cannot use.
+USE_GPU=1
+CAP="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d ' ')"
+if [ -n "$CAP" ] && awk -v c="$CAP" 'BEGIN{exit !(c+0 < 7.0)}'; then
+  warn "GPU compute capability $CAP is below 7.0 and unsupported by the bundled PyTorch; VoiceStudio will run on CPU."
+  USE_GPU=0
+fi
+[ "${FORCE_CPU:-0}" = 1 ] && USE_GPU=0
 
 # ── 2. Docker Engine + Compose ─────────────────────────────────────────────
 if ! command -v docker >/dev/null 2>&1; then
@@ -86,9 +96,11 @@ if ! grep -q '"nvidia"' /etc/docker/daemon.json 2>/dev/null; then
   nvidia-ctk runtime configure --runtime=docker >/dev/null
   systemctl restart docker
 fi
-say "Testing GPU access from a container"
-docker run --rm --gpus all ubuntu:24.04 nvidia-smi -L >/dev/null 2>&1 \
-  || die "Docker cannot reach the GPU. Check 'nvidia-ctk runtime configure --runtime=docker' and restart Docker."
+[ "$USE_GPU" = 1 ] && say "Testing GPU access from a container"
+if [ "$USE_GPU" = 1 ]; then
+  docker run --rm --gpus all ubuntu:24.04 nvidia-smi -L >/dev/null 2>&1 \
+    || die "Docker cannot reach the GPU. Check 'nvidia-ctk runtime configure --runtime=docker' and restart Docker."
+fi
 
 # ── 4. Source ──────────────────────────────────────────────────────────────
 command -v git >/dev/null 2>&1 || {
@@ -132,7 +144,8 @@ fi
 . "./$ENV_FILE"
 
 # ── 6. Build and start ─────────────────────────────────────────────────────
-COMPOSE=(docker compose -f deploy/docker-compose.lan.yml -f deploy/docker-compose.server.gpu.yml)
+COMPOSE=(docker compose -f deploy/docker-compose.lan.yml)
+[ "$USE_GPU" = 1 ] && COMPOSE+=(-f deploy/docker-compose.server.gpu.yml)
 say "Building and starting VoiceStudio (first build takes 10-30 minutes)"
 "${COMPOSE[@]}" up -d --build
 
