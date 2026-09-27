@@ -3,7 +3,45 @@
 VoiceStudio runs as a web app: the FastAPI backend serves the browser UI and
 the API from one port. Put it behind HTTPS and open it from any browser.
 
-## Quick start (Docker + automatic HTTPS)
+## Local network only (no domain)
+
+For a server that only devices on your home or office network should reach.
+
+```bash
+git clone -b webapp-server https://github.com/<you>/VoiceStudio.git
+cd VoiceStudio
+hostname -I          # note the LAN IP, e.g. 192.168.1.50
+
+printf 'VOICESTUDIO_HOST=192.168.1.50\nOMNIVOICE_API_KEY=%s\n' "$(openssl rand -base64 32)" > deploy/.env
+chmod 600 deploy/.env
+
+# CPU
+docker compose -f deploy/docker-compose.lan.yml up -d --build
+# NVIDIA GPU
+docker compose -f deploy/docker-compose.lan.yml \
+  -f deploy/docker-compose.server.gpu.yml up -d --build
+```
+
+Open `https://192.168.1.50:9999` from any device on the network and sign in
+with the key (`cat deploy/.env`). Give the server a fixed IP in your router so
+the address does not change, and do not forward port 9999 to the internet.
+
+**Certificate warning.** The certificate comes from a private CA that Caddy
+creates on first start, so browsers warn once per device; choose "Advanced →
+Proceed". To remove the warning, copy the CA and install it as a trusted root
+on each device:
+
+```bash
+docker compose -f deploy/docker-compose.lan.yml cp \
+  caddy:/data/caddy/pki/authorities/local/root.crt ./voicestudio-ca.crt
+```
+
+HTTPS is used even on a LAN because browsers only allow the microphone
+(recording, dictation) on secure origins.
+
+## Public internet (with a domain)
+
+### Quick start (Docker + automatic HTTPS)
 
 Requirements: a Linux x86-64 server with Docker and Docker Compose, a domain
 name pointing at the server, and ports 9999 (the app) and 80 (certificate

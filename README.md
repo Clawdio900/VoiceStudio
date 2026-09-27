@@ -57,20 +57,19 @@ Local workflows run on your hardware. Remote services are optional; usage analyt
 VoiceStudio is a **web app** you run on your own server and open in any
 browser. The backend serves the UI and the API on one port.
 
-### Run on your server (Docker + HTTPS)
+### Run on your local network
 
 ```bash
-git clone https://github.com/Clawdio900/VoiceStudio.git
+git clone -b webapp-server https://github.com/Clawdio900/VoiceStudio.git
 cd VoiceStudio
-printf 'VOICESTUDIO_DOMAIN=voice.example.com\nOMNIVOICE_API_KEY=%s\n' "$(openssl rand -base64 32)" > deploy/.env
-docker compose -f deploy/docker-compose.server.yml up -d --build
+printf 'VOICESTUDIO_HOST=%s\nOMNIVOICE_API_KEY=%s\n' "$(hostname -I | cut -d' ' -f1)" "$(openssl rand -base64 32)" > deploy/.env
+docker compose -f deploy/docker-compose.lan.yml up -d --build
 ```
 
-Open `https://voice.example.com:9999` and sign in with the key from `deploy/.env`
-(set `VOICESTUDIO_PORT` in `deploy/.env` to use another port).
-For NVIDIA GPUs, your own nginx, or a setup without Docker, see the
-**[server guide](docs/install/server.md)**. Plain Docker usage:
-[docs/install/docker.md](docs/install/docker.md).
+Open `https://<server-ip>:9999` from any device on the network, accept the
+certificate warning once, and sign in with the key from `deploy/.env`.
+Public deployments with a domain, NVIDIA GPUs, and setups without Docker are
+covered in the **[server guide](docs/install/server.md)**.
 
 Open **Voice cloning**, choose a voice or add a clean reference recording, enter your text, and generate. Install the required model when prompted. Hardware needs vary by engine; see [performance](docs/performance.md).
 

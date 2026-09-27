@@ -1,0 +1,23 @@
+# LAN-only HTTPS for VoiceStudio on https://$VOICESTUDIO_HOST:$VOICESTUDIO_PORT
+# (default port 9999). No domain or internet access needed: Caddy issues the
+# certificate from its own local CA ("tls internal"). HTTPS matters even on a
+# LAN because browsers only allow the microphone on secure origins.
+https://{$VOICESTUDIO_HOST}:{$VOICESTUDIO_PORT:9999} {
+	tls internal
+	encode zstd gzip
+	request_body {
+		max_size 2GB
+	}
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		-Server
+	}
+	reverse_proxy voicestudio:3900 {
+		flush_interval -1
+		transport http {
+			read_timeout 0
+			write_timeout 0
+		}
+	}
+}

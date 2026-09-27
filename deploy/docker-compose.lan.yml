@@ -1,0 +1,70 @@
+# ──────────────────────────────────────────────────────────────
+#  VoiceStudio — web app on your LOCAL NETWORK (no domain, no internet exposure)
+#
+#  1. Find the server's LAN IP (e.g. `hostname -I` → 192.168.1.50) and give it
+#     a fixed address in your router (DHCP reservation).
+#  2. Create deploy/.env next to this file:
+#       VOICESTUDIO_HOST=192.168.1.50
+#       OMNIVOICE_API_KEY=<output of: openssl rand -base64 32>
+#       VOICESTUDIO_PORT=9999   # optional (default 9999)
+#  3. Start (builds the image from this checkout):
+#       docker compose -f deploy/docker-compose.lan.yml up -d --build
+#     NVIDIA GPU:  add  -f deploy/docker-compose.server.gpu.yml
+#  4. Open https://192.168.1.50:9999 from any device on the network, accept
+#     the certificate warning (or install the local CA, see
+#     docs/install/server.md), and sign in with OMNIVOICE_API_KEY.
+#
+#  Do not forward port 9999 on your router: this setup is meant for the LAN.
+# ──────────────────────────────────────────────────────────────
+
+services:
+  voicestudio:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: voicestudio:local
+    container_name: voicestudio
+    expose:
+      - "3900"
+    volumes:
+      - voicestudio-data:/app/omnivoice_data
+    environment:
+      - HF_HOME=/app/omnivoice_data/huggingface
+      - HF_TOKEN=${HF_TOKEN:-}
+      - OMNIVOICE_DATA_DIR=/app/omnivoice_data
+      - PYTHONPATH=/app/backend
+      - PYTHONUNBUFFERED=1
+      - OMNIVOICE_BIND_HOST=0.0.0.0
+      - OMNIVOICE_SERVER_MODE=1
+      # Docker's network hides whether a browser is local, so settings and
+      # other admin actions still need this key, even on a LAN.
+      - OMNIVOICE_API_KEY=${OMNIVOICE_API_KEY:?set OMNIVOICE_API_KEY in deploy/.env}
+      - OMNIVOICE_ALLOWED_ORIGINS=https://${VOICESTUDIO_HOST:?set VOICESTUDIO_HOST in deploy/.env}:${VOICESTUDIO_PORT:-9999}
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3900/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: voicestudio-caddy
+    depends_on:
+      - voicestudio
+    ports:
+      - "${VOICESTUDIO_PORT:-9999}:${VOICESTUDIO_PORT:-9999}"
+    environment:
+      - VOICESTUDIO_HOST=${VOICESTUDIO_HOST:?set VOICESTUDIO_HOST in deploy/.env}
+      - VOICESTUDIO_PORT=${VOICESTUDIO_PORT:-9999}
+    volumes:
+      - ./Caddyfile.lan:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    restart: unless-stopped
+
+volumes:
+  voicestudio-data:
+  caddy-data:
+  caddy-config:
