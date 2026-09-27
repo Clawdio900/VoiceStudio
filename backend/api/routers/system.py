@@ -1356,7 +1356,10 @@ async def _do_clean_audio(audio, tmp_dir, clean_id):
             timeout=900.0,
         )
         if rc == 0:
-            demucs_out = os.path.join(tmp_dir, "htdemucs", "converted")
+            # Demucs names its output folder after the input stem, which is
+            # "raw" when the conversion above failed and fell back.
+            stem = os.path.splitext(os.path.basename(converted_path))[0]
+            demucs_out = os.path.join(tmp_dir, "htdemucs", stem)
             vocals_file = os.path.join(demucs_out, "vocals.wav")
             if os.path.exists(vocals_file):
                 clean_path = vocals_file

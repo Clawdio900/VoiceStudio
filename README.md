@@ -7,8 +7,7 @@
   <p><strong>Open-source voice cloning, voice design, video dubbing, dictation, transcription & audiobook creation in 646 languages.</strong></p>
   <p>
     <a href="https://voicestudio.sh/?utm_source=github&utm_medium=readme&utm_campaign=project">Website</a> ·
-    <a href="https://github.com/debpalash/VoiceStudio/releases/latest">Download</a> ·
-    <a href="#get-started">Get started</a> ·
+        <a href="#get-started">Get started</a> ·
     <a href="#documentation">Docs</a> ·
     <a href="https://discord.gg/bzQavDfVV9">Discord</a> ·
     <a href="README_CN.md">简体中文</a>
@@ -20,7 +19,7 @@
   </p>
 </div>
 
-![A tour of the Electron app: voice cloning, voice design, dubbing, and model management](docs/media/electron/voicestudio.gif)
+![A tour of the app: voice cloning, voice design, dubbing, and model management](docs/media/electron/voicestudio.gif)
 
 ## Your voice. Your workflow.
 
@@ -38,8 +37,8 @@ Local workflows run on your hardware. Remote services are optional; usage analyt
 
 <table>
   <tr>
-    <td><img src="docs/media/electron/voice-cloning.png" alt="Electron voice cloning workspace with the bundled demo voice" width="100%" /></td>
-    <td><img src="docs/media/electron/dubbing.png" alt="Electron video dubbing workspace" width="100%" /></td>
+    <td><img src="docs/media/electron/voice-cloning.png" alt="voice cloning workspace with the bundled demo voice" width="100%" /></td>
+    <td><img src="docs/media/electron/dubbing.png" alt="video dubbing workspace" width="100%" /></td>
   </tr>
   <tr><td align="center">Voice cloning</td><td align="center">Video dubbing</td></tr>
   <tr>
@@ -55,66 +54,34 @@ Local workflows run on your hardware. Remote services are optional; usage analyt
 
 ## Get started
 
-### One-command install (macOS / Linux)
+VoiceStudio is a **web app** you run on your own server and open in any
+browser. The backend serves the UI and the API on one port.
 
-```sh
-# Latest Electron release
-curl -fsSL https://voicestudio.sh/install | sh
+### Run on your server (Docker + HTTPS)
 
-# A specific published Electron release (replace X.Y.Z)
-curl -fsSL https://voicestudio.sh/install | sh -s -- --version X.Y.Z
-
-# Build current main and install the desktop app
-curl -fsSL https://voicestudio.sh/install | sh -s -- --main
-
-# Uninstall the app, keeping your data
-curl -fsSL https://voicestudio.sh/install | sh -s -- --uninstall
+```bash
+git clone https://github.com/Clawdio900/VoiceStudio.git
+cd VoiceStudio
+printf 'VOICESTUDIO_DOMAIN=voice.example.com\nOMNIVOICE_API_KEY=%s\n' "$(openssl rand -base64 32)" > deploy/.env
+docker compose -f deploy/docker-compose.server.yml up -d --build
 ```
 
-Release downloads require curl and a SHA-256 tool. `--main` requires Git,
-Node.js 22+, Bun, Rust/Cargo, and platform build tools; see
-[installer prerequisites and behavior](docs/install/script.md).
-The installer preserves your settings, projects, and models. Older versions
-must contain Electron packages; it never falls back to archived Tauri builds.
-
-Download from [Releases](https://github.com/debpalash/VoiceStudio/releases/latest), then follow your platform guide:
-
-**[macOS](docs/install/macos.md) · [Windows](docs/install/windows.md) · [Linux](docs/install/linux.md) · [Docker](docs/install/docker.md)**
+Open `https://voice.example.com` and sign in with the key from `deploy/.env`.
+For NVIDIA GPUs, your own nginx, or a setup without Docker, see the
+**[server guide](docs/install/server.md)**. Plain Docker usage:
+[docs/install/docker.md](docs/install/docker.md).
 
 Open **Voice cloning**, choose a voice or add a clean reference recording, enter your text, and generate. Install the required model when prompted. Hardware needs vary by engine; see [performance](docs/performance.md).
 
-### Install with prompt
-
-Paste into your coding agent (Claude Code, Codex, Cursor, …):
-
-```text
-Install the VoiceStudio Electron app on this device and verify it works, following
-https://github.com/debpalash/VoiceStudio/blob/main/docs/install/agent.md
-```
-
-The [agent guide](docs/install/agent.md) covers hardware detection, reusing existing
-data, asking before model downloads, and a test generation. Agents that support skills
-can also run `npx skills add debpalash/VoiceStudio`.
-
 <details>
-<summary><strong>Run the Electron preview from source</strong></summary>
+<summary><strong>Develop locally</strong></summary>
 
 ```bash
-git clone https://github.com/debpalash/VoiceStudio.git
-cd VoiceStudio
 bun install
-bun run setup:api  # prepare Python dependencies before starting Electron
-bun run dev
+bun run dev:web   # backend on :3900 + UI dev server on http://localhost:3901
 ```
 
-See [Electron setup](electron/README.md) for prerequisites and backend configuration.
-
-Use `bun run smoke-test` to build and launch an isolated packaged Electron app.
-Add `-- --install` for the networked managed-runtime installation check.
-
 </details>
-
-> **Electron is the only desktop app and web UI.** Version 0.5.3 was the final Tauri release. Existing Tauri users must [install Electron separately](docs/electron-migration.md). The retired Tauri shell and legacy UI entry points have been removed.
 
 ## Documentation
 

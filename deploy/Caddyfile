@@ -1,0 +1,24 @@
+# HTTPS reverse proxy for VoiceStudio. Caddy gets and renews a Let's Encrypt
+# certificate for $VOICESTUDIO_DOMAIN automatically (ports 80 and 443 must be
+# reachable from the internet and the domain's DNS must point at this server).
+{$VOICESTUDIO_DOMAIN} {
+	encode zstd gzip
+	# Uploads (videos for dubbing, audiobooks) can be large.
+	request_body {
+		max_size 2GB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		-Server
+	}
+	reverse_proxy voicestudio:3900 {
+		# Long synth/dub jobs stream progress over SSE and WebSockets.
+		flush_interval -1
+		transport http {
+			read_timeout 0
+			write_timeout 0
+		}
+	}
+}

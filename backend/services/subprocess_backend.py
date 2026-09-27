@@ -460,16 +460,6 @@ class SubprocessBackend(TTSBackend):
         """Seconds since the last sidecar activity (spawn or frame I/O)."""
         return time.monotonic() - self._last_used
 
-    def unload(self) -> None:
-        """Release this engine's sidecar (MM2-02). Routes to the same
-        force-reap path the manual /model/unload endpoint uses, so a busy
-        sidecar (mid-synth) is skipped, not interrupted. Idempotent: a no-op
-        when no sidecar is running. Inherited by every subprocess engine."""
-        try:
-            unload_sidecar(self.id)
-        except Exception:
-            pass
-
     # ── subclass contract ──────────────────────────────────────────────────
 
     @classmethod
@@ -753,7 +743,9 @@ class SubprocessBackend(TTSBackend):
             self._proc = None
 
     def unload(self) -> None:
-        """TTSBackend.unload override — idempotent shutdown."""
+        """TTSBackend.unload override — idempotent shutdown. (An earlier,
+        shadowed definition routed through the busy-guarded reaper; this one
+        was always the effective behaviour, so the dead copy was removed.)"""
         self.shutdown()
 
     # ── health check + generate ────────────────────────────────────────────

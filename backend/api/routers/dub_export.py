@@ -1,4 +1,5 @@
 import asyncio
+import weakref
 import io
 import json
 import logging
@@ -1140,7 +1141,8 @@ async def dub_get_media(job_id: str, request: Request):
 # against the same output path, and the mtime check below saw the half-written
 # file as a valid cache — serving a truncated MP4 that left the player stuck
 # loading forever (#281).
-_preview_mux_locks: dict[str, asyncio.Lock] = {}
+# Weak values so finished previews do not leak one lock per path forever.
+_preview_mux_locks: "weakref.WeakValueDictionary[str, asyncio.Lock]" = weakref.WeakValueDictionary()
 
 
 def _preview_lock(path: str) -> asyncio.Lock:

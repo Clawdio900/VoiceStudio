@@ -894,7 +894,7 @@ def select_default_engine() -> str:
 
 
 __all__ = [
-    "OmniVoiceGGUFBackend",
+    "OmniVoiceGGUFBackend",  # noqa: F822 (provided lazily by module __getattr__)
     "select_default_engine",
     "_allowed_quant_filenames",
     "_load_quant_map",

@@ -817,6 +817,11 @@ async def dub_ingest_url(req: DubIngestUrlRequest, request: Request):
             status_code=400,
             detail="URL must start with http:// or https://. Paste a full video link (e.g. https://youtube.com/watch?v=…) or drop a local file instead.",
         )
+    from core.public_url import UnsafeMediaUrl, require_public_http_url
+    try:
+        url = await asyncio.to_thread(require_public_http_url, url)
+    except UnsafeMediaUrl as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     source_lang_override = _source_lang_override(req.source_lang)
 
     try:

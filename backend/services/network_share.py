@@ -213,6 +213,10 @@ async def _enable(app) -> ShareState:
     config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="warning")
     server = uvicorn.Server(config)
     server.install_signal_handlers = lambda: None  # never hijack signals in-process
+    # Publish the PIN BEFORE the 0.0.0.0 listener starts: the PIN middleware
+    # treats "no PIN" as "gate off", so a gap here would let LAN requests in
+    # unauthenticated while the socket binds.
+    app.state.network_share = ShareState(False, port, pin, [])
     _runtime.task = asyncio.create_task(server.serve())
     for _ in range(100):  # ~5s for the socket to bind
         if getattr(server, "started", False):
@@ -251,6 +255,7 @@ async def _enable(app) -> ShareState:
                 "LAN share listener could not be stopped. Retry Disable before enabling again."
             ) from exc
         _runtime.server = _runtime.task = None
+        app.state.network_share = _runtime.state
         raise RuntimeError("share listener failed to start")
     _runtime.server = server
     _runtime.state = ShareState(True, port, pin, lan_ipv4_addresses())

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import weakref
 import hashlib
 import json
 import math
@@ -14,7 +15,9 @@ from services.video_retime import expand_retime_chunks
 
 RATE = 48000
 FADE_S = .01
-_locks: dict[str, asyncio.Lock] = {}
+# Weak values: an entry lives only while some request holds or awaits it,
+# so one lock per job/lang/option no longer accumulates forever.
+_locks: "weakref.WeakValueDictionary[str, asyncio.Lock]" = weakref.WeakValueDictionary()
 
 
 def dialogue_intervals(segments: list[dict]) -> list[tuple[float, float]]:

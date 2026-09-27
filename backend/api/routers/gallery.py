@@ -189,7 +189,7 @@ async def search_youtube(
         if result.returncode != 0:
             logger.error(f"yt-dlp search failed: {stderr.decode()}")
             raise HTTPException(
-                status_code=500, detail=f"YouTube search failed: {stderr.decode()}"
+                status_code=500, detail="YouTube search failed. Check the server log for details."
             )
 
         lines = stdout.decode().strip().split("\n")
@@ -228,6 +228,11 @@ async def download_youtube_clip(
     description: str = Query("", description="Optional description"),
 ):
     """Download a clip from YouTube for voice cloning."""
+    from core.public_url import UnsafeMediaUrl, require_public_http_url
+    try:
+        video_url = await asyncio.to_thread(require_public_http_url, video_url)
+    except UnsafeMediaUrl as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     voice_id = str(uuid.uuid4())[:8]
     output_path = str(VOICE_GALLERY_DIR / f"{voice_id}.wav")
     temp_path = str(VOICE_GALLERY_DIR / f"{voice_id}.%(ext)s")
@@ -249,6 +254,7 @@ async def download_youtube_clip(
             "0",
             "-o",
             temp_path,
+            "--",
             video_url,
         ]
 
@@ -263,7 +269,7 @@ async def download_youtube_clip(
         if result.returncode != 0:
             logger.error(f"yt-dlp download failed: {stderr.decode()}")
             raise HTTPException(
-                status_code=500, detail=f"Download failed: {stderr.decode()}"
+                status_code=500, detail="Download failed. Check the server log for details."
             )
 
         # Find the downloaded file (yt-dlp replaces %s with actual extension)

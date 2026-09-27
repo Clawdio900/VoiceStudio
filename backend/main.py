@@ -752,6 +752,18 @@ def _phase_a_build_inner() -> None:
     _phase_a_built = True
 
 
+class MediaStaticFiles(StaticFiles):
+    """StaticFiles for user media. Uploaded or imported files are served from
+    the app's own origin, so never let a browser sniff or render one as a
+    document: nosniff plus a sandbox CSP neutralises a stray .html/.svg."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Content-Security-Policy"] = "sandbox; default-src 'none'; media-src 'self'"
+        return response
+
+
 def _phase_a_finalize() -> None:
     """Register everything Phase A imported. Mutates the app — must run on
     the event loop in deferred mode (no awaits inside → atomic wrt requests).
@@ -775,8 +787,8 @@ def _phase_a_finalize() -> None:
                 "MCP server not mounted (%s); /mcp disabled.", _mcp_err
             )
 
-    app.mount("/audio", StaticFiles(directory=OUTPUTS_DIR), name="audio")
-    app.mount("/voice_audio", StaticFiles(directory=VOICES_DIR), name="voice_audio")
+    app.mount("/audio", MediaStaticFiles(directory=OUTPUTS_DIR), name="audio")
+    app.mount("/voice_audio", MediaStaticFiles(directory=VOICES_DIR), name="voice_audio")
     # Bundled demo assets — read-only, ships with the app, no network.
     _demo_dir = os.path.join(os.path.dirname(__file__), "assets", "samples")
     if os.path.isdir(_demo_dir):
@@ -1583,6 +1595,44 @@ class StartupGateMiddleware:
         return await resp(scope, receive, send)
 
 
+_PIN_WINDOW_SECONDS = 300
+_PIN_CLIENT_LIMIT = 10
+_PIN_GLOBAL_LIMIT = 100
+_pin_failures: dict[str, list[float]] = {}
+_pin_failures_lock = threading.Lock()
+
+
+def _recent_pin_failures(key: str, now: float) -> list[float]:
+    kept = [t for t in _pin_failures.get(key, ()) if now - t < _PIN_WINDOW_SECONDS]
+    if kept:
+        _pin_failures[key] = kept
+    else:
+        _pin_failures.pop(key, None)
+    return kept
+
+
+def _pin_attempts_blocked(client_id: str) -> int | None:
+    now = time.monotonic()
+    with _pin_failures_lock:
+        for key, limit in ((client_id, _PIN_CLIENT_LIMIT), ("*", _PIN_GLOBAL_LIMIT)):
+            failures = _recent_pin_failures(key, now)
+            if len(failures) >= limit:
+                return max(1, int(_PIN_WINDOW_SECONDS - (now - failures[0])) + 1)
+    return None
+
+
+def _register_pin_failure(client_id: str) -> None:
+    now = time.monotonic()
+    with _pin_failures_lock:
+        for key in (client_id, "*"):
+            _pin_failures.setdefault(key, []).append(now)
+        # Bound memory against address-spraying clients.
+        if len(_pin_failures) > 4096:
+            for key in list(_pin_failures)[:1024]:
+                if key != "*":
+                    _pin_failures.pop(key, None)
+
+
 class NetworkAccessMiddleware:
     """When a share PIN is set, require it for non-loopback clients on API
     routes. Inert when no PIN (default + docker deploys). Loopback (incl.
@@ -1626,7 +1676,21 @@ class NetworkAccessMiddleware:
             or request.cookies.get("ov_pin")
             or ""
         )
+        # A 6-digit PIN is only safe with brute-force throttling: count wrong
+        # guesses per client and across all clients, and refuse every attempt
+        # (right or wrong) while a limit is tripped.
+        client_id = str(client or "unknown")
+        retry_after = _pin_attempts_blocked(client_id)
+        if retry_after is not None:
+            resp = JSONResponse(
+                {"detail": "Too many PIN attempts"},
+                status_code=429,
+                headers={"Retry-After": str(retry_after)},
+            )
+            return await resp(scope, receive, send)
         if not credential_matches(supplied, pin):
+            if supplied:
+                _register_pin_failure(client_id)
             resp = JSONResponse({"detail": "PIN required"}, status_code=401)
             return await resp(scope, receive, send)
         # Valid PIN. Set the cookie by wrapping send to inject Set-Cookie on the
@@ -1635,7 +1699,11 @@ class NetworkAccessMiddleware:
             async def send_with_cookie(message):
                 if message["type"] == "http.response.start":
                     headers = MutableHeaders(scope=message)
-                    headers.append("set-cookie", f"ov_pin={pin}; Path=/; SameSite=Lax")
+                    secure = "; Secure" if scope.get("scheme") == "https" else ""
+                    headers.append(
+                        "set-cookie",
+                        f"ov_pin={pin}; Path=/; HttpOnly; SameSite=Lax{secure}",
+                    )
                 await send(message)
 
             return await self.app(scope, receive, send_with_cookie)
@@ -1825,6 +1893,12 @@ app.add_middleware(
 # preflights and gate-generated 401s retain the browser contract. The marker's
 # absence lets a client conclude that the responder is not VoiceStudio (#1385).
 app.add_middleware(BackendMarkerMiddleware)
+
+# Outermost of all: a loopback peer that is really a reverse proxy (or a
+# DNS-rebinding page) must not inherit loopback admin trust. Rewrites
+# scope["client"] before any gate or route reads it.
+from core.proxy_guard import ProxiedLoopbackMiddleware
+app.add_middleware(ProxiedLoopbackMiddleware)
 
 # Register canonical audio MIME types before any StaticFiles mount.
 # Python's `mimetypes.guess_type()` returns `audio/x-wav` for `.wav` and

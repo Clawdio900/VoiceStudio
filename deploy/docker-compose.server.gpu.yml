@@ -1,0 +1,13 @@
+# NVIDIA GPU overlay for docker-compose.server.yml. Requires the NVIDIA
+# Container Toolkit on the host.
+#   docker compose -f deploy/docker-compose.server.yml \
+#     -f deploy/docker-compose.server.gpu.yml up -d --build
+services:
+  voicestudio:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

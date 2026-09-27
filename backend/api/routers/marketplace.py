@@ -25,7 +25,6 @@ import io
 import json
 import logging
 import os
-import shutil
 import time
 import uuid
 import zipfile
@@ -56,6 +55,76 @@ BUNDLE_VERSION = 1
 
 # Maximum bundle upload size (100 MB) to prevent memory exhaustion
 MAX_BUNDLE_BYTES = 100 * 1024 * 1024
+
+
+#: Reference clips are served back through the /voice_audio static mount, so
+#: only real audio extensions may land in VOICES_DIR. A bundle naming its clip
+#: ``ref_audio.html`` must not become stored HTML on the backend's origin.
+_BUNDLE_AUDIO_EXTS = frozenset({".wav", ".mp3", ".flac", ".ogg", ".m4a", ".opus", ".webm", ".aac"})
+#: Uncompressed cap per extracted entry (zip-bomb guard). Compressed size is
+#: capped separately by MAX_BUNDLE_BYTES.
+MAX_BUNDLE_ENTRY_BYTES = 200 * 1024 * 1024
+
+
+def _bundle_audio_ext(name: str) -> str:
+    ext = (os.path.splitext(name)[1] or ".wav").lower()
+    if ext not in _BUNDLE_AUDIO_EXTS:
+        raise HTTPException(status_code=400, detail=f"Unsupported audio type in bundle: {ext}")
+    return ext
+
+
+def _copy_capped(src, dst_path: str) -> None:
+    written = 0
+    with open(dst_path, "wb") as dst:
+        while chunk := src.read(1024 * 1024):
+            written += len(chunk)
+            if written > MAX_BUNDLE_ENTRY_BYTES:
+                raise HTTPException(status_code=413, detail="Bundle audio entry too large.")
+            dst.write(chunk)
+
+
+def _extract_bundle_audio(zf: zipfile.ZipFile, profile_id: str, written: list[str]) -> tuple[Optional[str], Optional[str]]:
+    """Extract at most one ref and one locked clip; every path written is
+    appended to ``written`` so the caller can clean up on any failure."""
+    ref_audio_filename = None
+    locked_audio_filename = None
+    for info in zf.infolist():
+        name = info.filename
+        if name.startswith("ref_audio") and ref_audio_filename is None:
+            ref_audio_filename = f"{profile_id}{_bundle_audio_ext(name)}"
+            target = ref_audio_filename
+        elif name.startswith("locked_audio") and locked_audio_filename is None:
+            locked_audio_filename = f"{profile_id}_locked{_bundle_audio_ext(name)}"
+            target = locked_audio_filename
+        else:
+            continue
+        if info.file_size > MAX_BUNDLE_ENTRY_BYTES:
+            raise HTTPException(status_code=413, detail="Bundle audio entry too large.")
+        path = os.path.join(VOICES_DIR, target)
+        written.append(path)
+        with zf.open(info) as src:
+            _copy_capped(src, path)
+    return ref_audio_filename, locked_audio_filename
+
+
+def _remove_written(paths: list[str]) -> None:
+    for path in paths:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
+async def _read_upload_capped(file: UploadFile) -> bytes:
+    buf = bytearray()
+    while chunk := await file.read(1024 * 1024):
+        buf.extend(chunk)
+        if len(buf) > MAX_BUNDLE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Bundle too large. Max is {MAX_BUNDLE_BYTES} bytes.",
+            )
+    return bytes(buf)
 
 
 def _contained_path(root, value, *, detail="Invalid file path") -> Path:
@@ -163,67 +232,7 @@ def export_profile(profile_id: str):
 # ── Import ──────────────────────────────────────────────────────────────────
 
 
-@router.post("/import")
-async def import_profile(
-    file: UploadFile = File(..., description="A .omnivoice bundle file"),
-):
-    """Import a voice profile from a .omnivoice bundle."""
-    if not file.filename or not file.filename.endswith(".omnivoice"):
-        raise HTTPException(
-            status_code=400,
-            detail="File must be a .omnivoice bundle (ZIP format).",
-        )
-
-    # Enforce upload size limit before reading
-    content = await file.read()
-    if len(content) > MAX_BUNDLE_BYTES:
-        raise HTTPException(
-            status_code=413,
-            detail=f"Bundle too large ({len(content)} bytes). Max is {MAX_BUNDLE_BYTES}.",
-        )
-
-    try:
-        zf = zipfile.ZipFile(io.BytesIO(content))
-    except zipfile.BadZipFile as exc:
-        raise HTTPException(status_code=400, detail="Invalid .omnivoice bundle (not a valid ZIP).") from exc
-
-    # Read metadata
-    if "metadata.json" not in zf.namelist():
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid .omnivoice bundle: missing metadata.json",
-        )
-
-    with zf.open("metadata.json") as mf:
-        metadata = json.load(mf)
-    profile_id = str(uuid.uuid4())[:8]
-
-    # Extract audio files — stream from zip to disk
-    ref_audio_filename = None
-    locked_audio_filename = None
-
-    for name in zf.namelist():
-        if name.startswith("ref_audio"):
-            ext = os.path.splitext(name)[1] or ".wav"
-            ref_audio_filename = f"{profile_id}{ext}"
-            ref_path = os.path.join(VOICES_DIR, ref_audio_filename)
-            with zf.open(name) as src, open(ref_path, "wb") as dst:
-                shutil.copyfileobj(src, dst)
-
-        elif name.startswith("locked_audio"):
-            ext = os.path.splitext(name)[1] or ".wav"
-            locked_audio_filename = f"{profile_id}_locked{ext}"
-            locked_path = os.path.join(VOICES_DIR, locked_audio_filename)
-            with zf.open(name) as src, open(locked_path, "wb") as dst:
-                shutil.copyfileobj(src, dst)
-
-    if not ref_audio_filename:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid .omnivoice bundle: no reference audio found.",
-        )
-
-    # Create the profile in the database
+def _insert_imported_profile(profile_id, metadata, ref_audio_filename, locked_audio_filename) -> None:
     is_locked = bool(metadata.get("is_locked") and locked_audio_filename)
     with db_conn() as conn:
         conn.execute(
@@ -251,6 +260,51 @@ async def import_profile(
             ),
         )
 
+
+@router.post("/import")
+async def import_profile(
+    file: UploadFile = File(..., description="A .omnivoice bundle file"),
+):
+    """Import a voice profile from a .omnivoice bundle."""
+    if not file.filename or not file.filename.endswith(".omnivoice"):
+        raise HTTPException(
+            status_code=400,
+            detail="File must be a .omnivoice bundle (ZIP format).",
+        )
+
+    # Enforce the size limit while reading, not after buffering everything.
+    content = await _read_upload_capped(file)
+
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(content))
+    except zipfile.BadZipFile as exc:
+        raise HTTPException(status_code=400, detail="Invalid .omnivoice bundle (not a valid ZIP).") from exc
+
+    # Read metadata
+    if "metadata.json" not in zf.namelist():
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid .omnivoice bundle: missing metadata.json",
+        )
+
+    with zf.open("metadata.json") as mf:
+        metadata = json.load(mf)
+    profile_id = str(uuid.uuid4())[:8]
+
+    # Extract audio files — stream from zip to disk; remove them on failure.
+    written: list[str] = []
+    try:
+        ref_audio_filename, locked_audio_filename = _extract_bundle_audio(zf, profile_id, written)
+        if not ref_audio_filename:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid .omnivoice bundle: no reference audio found.",
+            )
+        _insert_imported_profile(profile_id, metadata, ref_audio_filename, locked_audio_filename)
+    except BaseException:
+        _remove_written(written)
+        raise
+
     event_bus.emit("profiles", {"action": "created", "id": profile_id})
     logger.info(
         "Imported voice profile %r as %s from .omnivoice bundle",
@@ -261,7 +315,7 @@ async def import_profile(
         "success": True,
         "profile_id": profile_id,
         "name": metadata.get("profile_name", "Imported Voice"),
-        "is_locked": is_locked,
+        "is_locked": bool(metadata.get("is_locked") and locked_audio_filename),
         "source_bundle": file.filename,
     }
 
@@ -405,45 +459,35 @@ async def install_from_marketplace(filename: str):
         metadata = json.load(mf)
     profile_id = str(uuid.uuid4())[:8]
 
-    ref_audio_filename = None
-    locked_audio_filename = None
-
-    for name in zf.namelist():
-        if name.startswith("ref_audio"):
-            ext = os.path.splitext(name)[1] or ".wav"
-            ref_audio_filename = f"{profile_id}{ext}"
-            with zf.open(name) as src, open(os.path.join(VOICES_DIR, ref_audio_filename), "wb") as dst:
-                shutil.copyfileobj(src, dst)
-        elif name.startswith("locked_audio"):
-            ext = os.path.splitext(name)[1] or ".wav"
-            locked_audio_filename = f"{profile_id}_locked{ext}"
-            with zf.open(name) as src, open(os.path.join(VOICES_DIR, locked_audio_filename), "wb") as dst:
-                shutil.copyfileobj(src, dst)
-
-    if not ref_audio_filename:
-        raise HTTPException(status_code=400, detail="No reference audio in bundle.")
-
-    is_locked = bool(metadata.get("is_locked") and locked_audio_filename)
-    with db_conn() as conn:
-        conn.execute(
-            """INSERT INTO voice_profiles
-               (id, name, ref_audio_path, ref_text, instruct, language,
-                seed, personality, is_locked, locked_audio_path, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                profile_id,
-                metadata.get("profile_name", "Marketplace Voice"),
-                ref_audio_filename,
-                metadata.get("ref_text", ""),
-                metadata.get("instruct", ""),
-                metadata.get("language", "Auto"),
-                metadata.get("seed"),
-                metadata.get("personality", ""),
-                1 if is_locked else 0,
-                locked_audio_filename or "",
-                time.time(),
-            ),
-        )
+    written: list[str] = []
+    try:
+        ref_audio_filename, locked_audio_filename = _extract_bundle_audio(zf, profile_id, written)
+        if not ref_audio_filename:
+            raise HTTPException(status_code=400, detail="No reference audio in bundle.")
+        is_locked = bool(metadata.get("is_locked") and locked_audio_filename)
+        with db_conn() as conn:
+            conn.execute(
+                """INSERT INTO voice_profiles
+                   (id, name, ref_audio_path, ref_text, instruct, language,
+                    seed, personality, is_locked, locked_audio_path, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    profile_id,
+                    metadata.get("profile_name", "Marketplace Voice"),
+                    ref_audio_filename,
+                    metadata.get("ref_text", ""),
+                    metadata.get("instruct", ""),
+                    metadata.get("language", "Auto"),
+                    metadata.get("seed"),
+                    metadata.get("personality", ""),
+                    1 if is_locked else 0,
+                    locked_audio_filename or "",
+                    time.time(),
+                ),
+            )
+    except BaseException:
+        _remove_written(written)
+        raise
 
     event_bus.emit("profiles", {"action": "created", "id": profile_id})
 
