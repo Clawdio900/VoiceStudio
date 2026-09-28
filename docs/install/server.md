@@ -49,6 +49,27 @@ docker compose -f deploy/docker-compose.lan.yml cp \
 HTTPS is used even on a LAN because browsers only allow the microphone
 (recording, dictation) on secure origins.
 
+## Windows (Docker Desktop)
+
+Requirements: Windows 10/11 64-bit, [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+(WSL 2 backend, running), [Git for Windows](https://git-scm.com/download/win), and
+for GPU mode a current NVIDIA driver with an RTX 20-series or newer card
+(compute capability 7.0+). In PowerShell **as Administrator**:
+
+```powershell
+irm https://raw.githubusercontent.com/Clawdio900/VoiceStudio/webapp-server/scripts/install-windows.ps1 | iex
+```
+
+It checks Docker, the GPU (including a container GPU test) and how much RAM
+Docker may use, clones into `%USERPROFILE%\VoiceStudio`, writes `deploy\.env`,
+opens TCP 9999 for private networks in Windows Firewall, builds with the GPU
+overlay, and prints the URL and API key. No checks are bypassed and no
+low-memory preset is applied. Set `$env:VS_FORCE_CPU=1` first for CPU mode.
+Re-run it to update.
+
+Docker Desktop must be running for VoiceStudio to be reachable; enable
+"Start Docker Desktop when you sign in".
+
 ## Low-memory servers (under 8 GB RAM)
 
 The installer adds this block to `deploy/.env` automatically when the server has
