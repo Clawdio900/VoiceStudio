@@ -3,10 +3,11 @@
 #   irm https://raw.githubusercontent.com/Clawdio900/VoiceStudio/webapp-server/scripts/install-windows.ps1 | iex
 #   (or from a checkout:  powershell -ExecutionPolicy Bypass -File scripts\install-windows.ps1)
 #
-# Run in PowerShell AS ADMINISTRATOR (needed for the firewall rule).
-# Requires: Docker Desktop (WSL 2 backend) running, Git for Windows, and for GPU
-# mode a current NVIDIA driver. Safe to re-run: it updates in place and keeps
-# your data and API key. No checks are bypassed: RAM preflight stays on and no
+# Run in PowerShell AS ADMINISTRATOR. It installs what is missing via winget:
+# WSL 2 (one reboot the first time, then run it again), Git for Windows and
+# Docker Desktop, then builds and starts VoiceStudio. The only thing you
+# provide is a current NVIDIA driver for GPU mode. Safe to re-run: it updates
+# in place and keeps your data and API key. No checks are bypassed: RAM preflight stays on and no
 # low-memory preset is applied.
 #
 # Optional environment overrides (set before running):
@@ -32,18 +33,77 @@ function Die($m)  { Write-Host "xx  $m" -ForegroundColor Red; throw "VoiceStudio
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) { Die 'Run PowerShell as Administrator (right-click -> Run as administrator).' }
 
-# ── 1. Prerequisites ───────────────────────────────────────────────────────
-Say 'Checking Docker Desktop'
-if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-    Die 'Docker is not installed. Install Docker Desktop (WSL 2 backend) from https://www.docker.com/products/docker-desktop/ and start it.'
+# ── 1. Prerequisites (installed automatically) ─────────────────────────────
+function Refresh-Path {
+    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
+                [Environment]::GetEnvironmentVariable('Path', 'User')
 }
+function Winget-Install($id, $label) {
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        Die "winget is missing. Install 'App Installer' from the Microsoft Store, then re-run (needed to install $label)."
+    }
+    Say "Installing $label"
+    winget install -e --id $id --silent --accept-package-agreements --accept-source-agreements
+    # -1978335189 / -1978335135: no applicable update / already installed
+    if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne -1978335189 -and $LASTEXITCODE -ne -1978335135) {
+        Die "Installing $label failed (winget exit $LASTEXITCODE)."
+    }
+    Refresh-Path
+}
+
+# WSL 2 (Docker Desktop's engine). A fresh enable needs a reboot.
+wsl --status *> $null
+if ($LASTEXITCODE -ne 0) {
+    Say 'Enabling WSL 2'
+    wsl --install --no-distribution
+    Warn 'WSL 2 was just enabled. RESTART Windows, then run this same command again to continue.'
+    return
+}
+wsl --update *> $null
+
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) { Winget-Install 'Git.Git' 'Git for Windows' }
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+    $gitExe = Join-Path $env:ProgramFiles 'Git\cmd'
+    if (Test-Path $gitExe) { $env:Path += ";$gitExe" } else { Die 'Git is still not available. Open a new PowerShell window and re-run.' }
+}
+
+$dockerDesktop = Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'
+if (-not (Test-Path $dockerDesktop)) { Winget-Install 'Docker.DockerDesktop' 'Docker Desktop' }
+if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+    $dockerBin = Join-Path $env:ProgramFiles 'Docker\Docker\resources\bin'
+    if (Test-Path $dockerBin) { $env:Path += ";$dockerBin" }
+}
+if (-not (Test-Path $dockerDesktop)) { Die 'Docker Desktop did not install. Install it from https://www.docker.com/products/docker-desktop/ and re-run.' }
+
 docker info *> $null
-if ($LASTEXITCODE -ne 0) { Die 'Docker Desktop is not running. Start it, wait for "Engine running", then re-run.' }
+if ($LASTEXITCODE -ne 0) {
+    Say 'Starting Docker Desktop (accept its terms if a window asks; first start can take a few minutes)'
+    Start-Process $dockerDesktop
+    $ready = $false
+    for ($i = 0; $i -lt 60; $i++) {
+        Start-Sleep -Seconds 5
+        docker info *> $null
+        if ($LASTEXITCODE -eq 0) { $ready = $true; break }
+    }
+    if (-not $ready) {
+        Die 'Docker Desktop did not start. Open it, finish its first-run screens until "Engine running", then re-run. If Windows asks you to sign out (docker-users group), do that first.'
+    }
+}
 docker compose version *> $null
 if ($LASTEXITCODE -ne 0) { Die 'docker compose is not available. Update Docker Desktop.' }
 
-if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    Die 'Git is not installed. Install Git for Windows from https://git-scm.com/download/win and re-run.'
+# Start Docker Desktop at sign-in so VoiceStudio comes back after a reboot.
+# (settings-store.json uses "AutoStart"; the older settings.json "autoStart".)
+foreach ($pair in @(@('settings-store.json', 'AutoStart'), @('settings.json', 'autoStart'))) {
+    $settings = Join-Path $env:APPDATA ('Docker\' + $pair[0])
+    if (-not (Test-Path $settings)) { continue }
+    try {
+        $json = Get-Content $settings -Raw | ConvertFrom-Json
+        $json | Add-Member -NotePropertyName $pair[1] -NotePropertyValue $true -Force
+        # No BOM: Docker Desktop's JSON reader rejects one.
+        [IO.File]::WriteAllText($settings, ($json | ConvertTo-Json -Depth 20), (New-Object Text.UTF8Encoding $false))
+    } catch { Warn 'Could not enable Docker Desktop auto-start; turn on "Start Docker Desktop when you sign in" in its settings.' }
+    break
 }
 
 # Memory Docker (WSL 2) may use. VoiceStudio wants >= 8 GB.

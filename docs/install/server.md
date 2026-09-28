@@ -51,14 +51,18 @@ HTTPS is used even on a LAN because browsers only allow the microphone
 
 ## Windows (Docker Desktop)
 
-Requirements: Windows 10/11 64-bit, [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-(WSL 2 backend, running), [Git for Windows](https://git-scm.com/download/win), and
-for GPU mode a current NVIDIA driver with an RTX 20-series or newer card
-(compute capability 7.0+). In PowerShell **as Administrator**:
+Windows 10/11 64-bit. For GPU mode you need a current NVIDIA driver and an
+RTX 20-series or newer card (compute capability 7.0+). Everything else is
+installed by the script. In PowerShell **as Administrator**:
 
 ```powershell
 irm https://raw.githubusercontent.com/Clawdio900/VoiceStudio/webapp-server/scripts/install-windows.ps1 | iex
 ```
+
+On a fresh PC it enables WSL 2 and asks you to restart Windows once; run the
+same command again after the restart. It then installs Git for Windows and
+Docker Desktop with winget, starts Docker Desktop (accept its terms if it asks)
+and sets it to start at sign-in.
 
 It checks Docker, the GPU (including a container GPU test) and how much RAM
 Docker may use, clones into `%USERPROFILE%\VoiceStudio`, writes `deploy\.env`,
